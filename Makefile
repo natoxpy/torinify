@@ -1,24 +1,29 @@
-CFLAGS +=  -g -fsanitize=address
+CFLAGS += -g -fsanitize=address
 LDFLAGS += -lavformat -lavcodec -lavutil -lswresample -lavfilter -lm
 
-SRCS := $(wildcard *.c)
+SRC_DIR = src
+BUILD_DIR = build
+
+SRCS := $(wildcard $(SRC_DIR)/**/*.c)
 SRCS := $(filter-out main.c, $(SRCS))
 
-OBJS = $(SRCS:.c=.o)
-LIBNAME = libcore.a
+OBJS := $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(SRCS))
+LIBNAME = $(BUILD_DIR)/libcore.a
+MAIN = $(BUILD_DIR)/main
 
-%.o: %.c
-	$(CC)  -o $@ -c $< $(CFLAGS) $(LDFLAGS)
+all: $(LIBNAME) $(MAIN)
 
 $(LIBNAME): $(OBJS)
+	mkdir -p $(BUILD_DIR)
 	ar rcs $@ $^
 
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
+	mkdir -p $(dir $@)
+	$(CC) -o $@ -c $< $(CFLAGS) $(LDFLAGS)
 
-main: main.c
-	$(CC) -o $@ $< $(CFLAGS) $(LDFLAGS) -lcore -L./ -I./
+$(MAIN): $(SRC_DIR)/main.c $(LIBNAME)
+	mkdir -p $(BUILD_DIR)
+	$(CC) -o $@ $< $(CFLAGS) -I $(SRC_DIR)/include -L $(BUILD_DIR) -lcore $(LDFLAGS)
 
-clean: 
-	rm $(OBJS) $(LIBNAME)
-	rm main
-
-
+clean:
+	rm -rf $(BUILD_DIR)
