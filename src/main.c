@@ -1,3 +1,5 @@
+/// Example: how to use Torinify
+
 #include "../include/torinify_core.h"
 #include <stdbool.h>
 #include <stdio.h>
