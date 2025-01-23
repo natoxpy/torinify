@@ -1,4 +1,4 @@
-#include "./include/libcore.h"
+#include "../include/libcore.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <unistd.h>
