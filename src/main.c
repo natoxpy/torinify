@@ -1,4 +1,4 @@
-#include "../include/libcore.h"
+#include "../include/torinify_core.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <unistd.h>
