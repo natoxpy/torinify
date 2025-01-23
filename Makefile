@@ -1,4 +1,5 @@
 CFLAGS += -g -fsanitize=address
+CFLAGS += -Iinclude
 LDFLAGS += -lavformat -lavcodec -lavutil -lswresample -lavfilter -lm
 
 SRC_DIR = src
