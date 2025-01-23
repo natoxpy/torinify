@@ -1,7 +1,7 @@
-#include <stdbool.h>
 
 #ifndef _TORINIFY_CORE_H
 #define _TORINIFY_CORE_H
+#include <stdbool.h>
 
 int cl_init(void);
 void cl_cleanup(void);

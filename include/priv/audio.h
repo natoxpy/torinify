@@ -1,7 +1,3 @@
-#ifndef MINIAUDIO_IMPLEMENTATION
-#define MINIAUDIO_IMPLEMENTATION
-#include <miniaudio.h>
-#endif
 
 #ifndef _AUDIO_H
 #define _AUDIO_H
@@ -9,6 +5,7 @@
 #include <libavformat/avformat.h>
 #include <libavutil/audio_fifo.h>
 #include <libavutil/samplefmt.h>
+#include <miniaudio.h>
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdint.h>

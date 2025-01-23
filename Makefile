@@ -18,17 +18,20 @@ all: $(LIBNAME) $(MAIN)
 MINIAUDIO_DIR = external/miniaudio
 MINIAUDIO_REPO = https://github.com/mackron/miniaudio.git
 
-CFLAGS += -I $(MINIAUDIO_DIR)
-
-$(MINIAUDIO_DIR):
+$(MINIAUDIO_DIR): 
+	# Use to get updated MINIAUDIO.c and MINIAUDIO.h
+	# Must move to source manually 
 	git clone $(MINIAUDIO_REPO) $(MINIAUDIO_DIR)
+
+miniaudio: $(MINIAUDIO_DIR)
+	
 # Libraries 
 
 $(LIBNAME): $(OBJS)
 	mkdir -p $(BUILD_DIR)
 	ar rcs $@ $^
 
-$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c $(MINIAUDIO_DIR)
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c 
 	mkdir -p $(dir $@)
 	$(CC) -o $@ -c $< $(CFLAGS) $(LDFLAGS)
 
@@ -37,4 +40,4 @@ $(MAIN): $(SRC_DIR)/main.c $(LIBNAME)
 	$(CC) -o $@ $< $(CFLAGS) -I $(SRC_DIR)/include -L $(BUILD_DIR) -lcore $(LDFLAGS)
 
 clean:
-	rm -rf $(BUILD_DIR) external
+	rm -rf $(BUILD_DIR) $(MINIAUDIO_SRC) external

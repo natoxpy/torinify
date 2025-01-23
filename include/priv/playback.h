@@ -1,14 +1,8 @@
-#ifndef MINIAUDIO_IMPLEMENTATION
-#define MINIAUDIO_IMPLEMENTATION
-#include <miniaudio.h>
-#endif
-
 #ifndef _PLAYBACK_H
 #define _PLAYBACK_H
 #include <libavutil/audio_fifo.h>
 #include <libavutil/samplefmt.h>
 #include <priv/audio.h>
-
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdint.h>
