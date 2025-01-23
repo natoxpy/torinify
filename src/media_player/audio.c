@@ -1,8 +1,7 @@
 #include <libavutil/audio_fifo.h>
 #include <libswresample/swresample.h>
 #define MINIAUDIO_IMPLEMENTATION
-#include "../../lib/miniaudio.h"
-
+#include "../../external/miniaudio/miniaudio.h"
 #include <libavcodec/avcodec.h>
 #include <libavcodec/codec.h>
 #include <libavformat/avformat.h>
