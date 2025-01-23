@@ -1,8 +1,8 @@
 /// Example: how to use Torinify
 
-#include "torinify_core.h"
 #include <stdbool.h>
 #include <stdio.h>
+#include <torinify_core.h>
 #include <unistd.h>
 
 void print_cmd() {

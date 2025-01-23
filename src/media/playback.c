@@ -1,6 +1,7 @@
-#include "audio.c"
 #include <libavutil/audio_fifo.h>
 #include <libavutil/samplefmt.h>
+#include <priv/audio.h>
+#include <priv/playback.h>
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -8,26 +9,6 @@
 #include <stdlib.h>
 #include <threads.h>
 #include <unistd.h>
-
-typedef struct PlaybackContext PlaybackContext;
-
-#define CLAMP(x, low, high)                                                    \
-    ((x) < (low) ? (low) : ((x) > (high) ? (high) : (x)))
-
-struct PlaybackContext {
-    PlaybackReadyContext *ctx;
-    ma_device *ma_device;
-    unsigned duration;
-    bool paused;
-    unsigned int samples_consumed;
-    float volume;
-};
-
-struct PlaybackLoop {
-    double *target_current_time;
-    bool *target_paused;
-    bool ended;
-};
 
 PlaybackContext *cl_playback_alloc() {
     PlaybackContext *pb_ctx = malloc(sizeof(PlaybackContext));

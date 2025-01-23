@@ -1,13 +1,17 @@
-#include "../media_player/playback.c"
 #include <libavutil/samplefmt.h>
+#include <priv/playback.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <torinify_core.h>
 
 // Global playback Context
 PlaybackContext *g_pb_ctx;
 
-void cl_init() { g_pb_ctx = cl_playback_alloc(); }
+int cl_init() {
+    g_pb_ctx = cl_playback_alloc();
+    return 0;
+}
 
 void cl_cleanup() {
     if (!g_pb_ctx)

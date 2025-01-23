@@ -1,24 +1,15 @@
-#include <libavutil/audio_fifo.h>
-#include <libswresample/swresample.h>
-#define MINIAUDIO_IMPLEMENTATION
-#include "miniaudio.h"
 #include <libavcodec/avcodec.h>
 #include <libavcodec/codec.h>
 #include <libavformat/avformat.h>
+#include <libavutil/audio_fifo.h>
 #include <libavutil/frame.h>
 #include <libavutil/samplefmt.h>
+#include <libswresample/swresample.h>
+#include <priv/audio.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-typedef struct FileContext FileContext;
-
-struct FileContext {
-    AVFormatContext *fmt_ctx;
-    AVCodecContext *dec_ctx;
-    int stream_index;
-};
 
 FileContext *cl_file_context_alloc() {
 
@@ -91,30 +82,6 @@ int cl_open_input_file(FileContext **in_file_ctx, const char *filename) {
 
     return 0;
 }
-
-typedef struct DecodedFileContext DecodedFileContext;
-typedef struct RawData RawData;
-typedef struct PlaybackReadyContext PlaybackReadyContext;
-
-struct DecodedFileContext {
-    RawData *data;
-    int nb_samples;
-};
-
-struct RawData {
-    uint8_t *data;
-    int capacity;
-    int length;
-};
-
-struct PlaybackReadyContext {
-    AVAudioFifo *fifo;
-    uint8_t *data;
-    int channels;
-    int sample_rate;
-    ma_format ma_format;
-    int nb_samples;
-};
 
 void cl_playback_ready_context_free(PlaybackReadyContext *pb_ready_ctx) {
 
