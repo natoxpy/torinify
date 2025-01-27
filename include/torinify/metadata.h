@@ -1,0 +1,4 @@
+#ifndef _TORINIFY_METADATA_H
+#define _TORINIFY_METADATA_H
+
+#endif

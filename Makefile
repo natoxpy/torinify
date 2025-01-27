@@ -1,6 +1,6 @@
 CFLAGS += -g -fsanitize=address
 CFLAGS += -Iinclude
-LDFLAGS += -lavformat -lavcodec -lavutil -lswresample -lavfilter -lm
+LDFLAGS += -lavformat -lavcodec -lavutil -lswresample -lavfilter -lm -lsqlite3
 
 SRC_DIR = src
 BUILD_DIR = build

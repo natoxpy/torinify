@@ -1,6 +1,5 @@
-
-#ifndef _TORINIFY_CORE_H
-#define _TORINIFY_CORE_H
+#ifndef _SIMPLE_PLAYBACK_H
+#define _SIMPLE_PLAYBACK_H
 #include <stdbool.h>
 
 int cl_init(void);
