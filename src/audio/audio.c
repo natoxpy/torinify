@@ -7,7 +7,7 @@
 #include <stdint.h>
 
 static int read_packet(void *opaque, uint8_t *buf, int buf_size) {
-    AAudioVector *bd = (AAudioVector *)opaque;
+    AAudioContextBuffer *bd = (AAudioContextBuffer *)opaque;
     buf_size = FFMIN(buf_size, bd->length);
 
     if (!buf_size)
@@ -27,6 +27,8 @@ AAudioContext *a_audio_alloc_context() {
     if (!audio_ctx)
         return NULL;
 
+    audio_ctx->au_buf = NULL;
+    audio_ctx->au_vec = NULL;
     audio_ctx->fmt_ctx = NULL;
     audio_ctx->codec_ctx = NULL;
     audio_ctx->stream_index = -1;
@@ -35,6 +37,14 @@ AAudioContext *a_audio_alloc_context() {
 }
 
 void a_audio_free_context(AAudioContext *audio_ctx) {
+    if (audio_ctx->au_buf != NULL) {
+        free(audio_ctx->au_buf);
+    }
+
+    if (audio_ctx->au_vec != NULL) {
+        a_audio_vector_free(audio_ctx->au_vec);
+    }
+
     if (audio_ctx->fmt_ctx != NULL) {
         if (audio_ctx->fmt_ctx->pb)
             av_freep(&audio_ctx->fmt_ctx->pb->buffer);
@@ -50,7 +60,7 @@ void a_audio_free_context(AAudioContext *audio_ctx) {
     free(audio_ctx);
 }
 
-int fmt_ctx_audio_ctx(AAudioContext *audio_ctx, AAudioVector *au_vec) {
+int fmt_ctx_audio_ctx(AAudioContext *audio_ctx, AAudioContextBuffer *au_buf) {
     int ret = 0;
     audio_ctx->fmt_ctx = avformat_alloc_context();
     AVFormatContext *fmt_ctx = audio_ctx->fmt_ctx;
@@ -69,7 +79,7 @@ int fmt_ctx_audio_ctx(AAudioContext *audio_ctx, AAudioVector *au_vec) {
     }
 
     AVIOContext *avio_ctx =
-        avio_alloc_context(avio_ctx_buffer, avio_ctx_buffer_size, 0, au_vec,
+        avio_alloc_context(avio_ctx_buffer, avio_ctx_buffer_size, 0, au_buf,
                            &read_packet, NULL, NULL);
 
     if (avio_ctx == NULL) {
@@ -139,13 +149,20 @@ int a_audio_context_init(uint8_t *in_data, size_t in_size,
 
     AAudioContext *au_ctx = a_audio_alloc_context();
 
-    AAudioVector *au_vec = NULL;
+    AAudioVector *au_vec;
     ret = a_audio_vector_init(&au_vec, in_data, in_size);
 
     if (ret < 0)
         goto end;
 
-    ret = fmt_ctx_audio_ctx(au_ctx, au_vec);
+    AAudioContextBuffer *au_buf = a_audio_vector_as_buffer(au_vec);
+
+    if (!au_buf) {
+        ret = -1;
+        goto end;
+    }
+
+    ret = fmt_ctx_audio_ctx(au_ctx, au_buf);
     if (ret < 0)
         goto end;
 
@@ -153,6 +170,8 @@ int a_audio_context_init(uint8_t *in_data, size_t in_size,
     if (ret < 0)
         goto end;
 
+    au_ctx->au_buf = au_buf;
+    au_ctx->au_vec = au_vec;
     *audio_ctx = au_ctx;
 
 end:

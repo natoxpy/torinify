@@ -1,34 +1,27 @@
 
 #ifndef _TORINIFY_CORE_H
 #define _TORINIFY_CORE_H
+#include <sqlite3.h>
 #include <torinify/playback.h>
 
 typedef struct TorinifyContext TorinifyContext;
 
 struct TorinifyContext {
     PlaybackContext *playback;
+    sqlite3 *sqlite3;
 };
 
 /// Torinigy Global Context
 extern TorinifyContext *tgc;
 
-int torinify_init();
-void torinify_cleanup();
+/// This will be cleaned up with `tf_cleanup`
+void tf_sqlite3_init(char *filename);
 
-// #include <stdbool.h>
-//
-// int cl_init(void);
-// void cl_cleanup(void);
-//
-// int cl_set_audio_file(char *filename);
-// void cl_set_current_time(unsigned int miliseconds);
-//
-// void cl_play(void);
-// void cl_pause(void);
-// bool cl_get_paused(void);
-// unsigned int cl_get_current_time(void);
-// unsigned int cl_get_duration(void);
-// float cl_get_volume(void);
-// void cl_set_volume(float volume);
+// Music
+void tf_register(char *filename);
+// END - MUSIC
 
-#endif
+int tf_init(void);
+void tf_cleanup(void);
+
+#endif // _TORINIFY_CORE_H

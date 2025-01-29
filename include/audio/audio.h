@@ -1,3 +1,9 @@
+#ifndef _AUDIO_FILE_H
+#define _AUDIO_FILE_H
+#include <stdint.h>
+int f_read_file(char *filename, uint8_t **file_data);
+#endif
+
 #ifndef _AUDIO_VECTOR_H
 #define _AUDIO_VECTOR_H
 
@@ -15,18 +21,27 @@ struct AAudioVector {
     size_t length;
 };
 
+typedef struct AAudioContextBuffer AAudioContextBuffer;
+struct AAudioContextBuffer {
+    uint8_t *ptr;
+    size_t length;
+};
+
 /// If no capacity is given, it will default to `one`
 ///
 /// return less than zero indicate errors
-AAudioVector *a_audio_vector_alloc(size_t *capacity);
+AAudioVector *a_audio_vector_alloc(size_t capacity);
 void a_audio_vector_free(AAudioVector *au_vec);
 
 /// @todo: implement
 /// return less than zero indicate errors
 int a_audio_vector_push(AAudioVector *au_vec, const uint8_t *buffer,
                         size_t size);
+
 /// return less than zero indicate errors
 int a_audio_vector_init(AAudioVector **au_vec, uint8_t *data, size_t size);
+
+AAudioContextBuffer *a_audio_vector_as_buffer(AAudioVector *au_vec);
 
 #endif
 
@@ -35,6 +50,8 @@ int a_audio_vector_init(AAudioVector **au_vec, uint8_t *data, size_t size);
 
 typedef struct AAudioContext AAudioContext;
 struct AAudioContext {
+    AAudioContextBuffer *au_buf;
+    AAudioVector *au_vec;
     AVFormatContext *fmt_ctx;
     AVCodecContext *codec_ctx;
     int stream_index;

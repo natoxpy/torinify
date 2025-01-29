@@ -1,0 +1,4 @@
+#ifndef _METADATA_METADATA_H
+#define _METADATA_METADATA_H
+
+#endif // _METADATA_METADATA_H

@@ -1,75 +1,190 @@
 /// Example: how to use Torinify
 
 #include "audio/audio.h"
+#include "migrations/migration.h"
+#include <libavutil/dict.h>
 #include <sqlite3.h>
 #include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <taglib/tag_c.h>
 #include <torinify/core.h>
 #include <unistd.h>
 
-// return negative for errors
-long read_file(char *filename, uint8_t **file_data) {
-    uint8_t *data = NULL;
-    long size = 0;
-
-    FILE *fp = fopen(filename, "r");
-
-    if (fp != NULL) {
-        if (fseek(fp, 0L, SEEK_END) == 0) {
-            long bufsize = ftell(fp);
-
-            if (bufsize == -1)
-                return -1;
-
-            data = malloc(sizeof(uint8_t) * (bufsize + 1));
-
-            if (fseek(fp, 0L, SEEK_SET) != 0)
-                return -1;
-
-            size = fread(data, sizeof(uint8_t), bufsize, fp);
-
-            if (ferror(fp) != 0) {
-                fputs("Error reading file\n", stderr);
-            } else {
-                data[size++] = '\0';
-            }
-        }
-        fclose(fp);
-    } else {
-        return -1;
-    }
-
-    *file_data = data;
-
-    return size;
-}
-
 int main(int argc, char *argv[]) {
-    int ret = 0;
-    // torinify_init();
+    int ret = tf_init(); // Todo handle errors
+    tf_sqlite3_init("../sqlite.db");
 
-    uint8_t *data;
-    int size = read_file("m/IronLotus.wav", &data);
+    ret = m_migrations(tgc->sqlite3);
 
-    AAudioContext *audio_ctx;
-    if (a_audio_context_init(data, size, &audio_ctx) != 0)
-        fprintf(stderr, "audio context init");
+    // tf_sqlite3_migrations("../migrations")
 
-    AAudioVector *au_vec;
-    if (a_audio_decode(audio_ctx, &au_vec) != 0)
-        fprintf(stderr, "audio could not be decoded");
+    // tf_register_pool("m")
 
-    a_audio_free_context(audio_ctx);
-    free(data);
+    // Initialize a file handle for the mp3 file
+    // TagLib_File *file = taglib_file_new("m/IronLotus.m4a");
+
+    // // Check if the file was opened correctly
+    // if (file != NULL) {
+    //     // Retrieve the tag and audio properties
+    //     TagLib_Tag *tag = taglib_file_tag(file);
+    //     const TagLib_AudioProperties *properties =
+    //         taglib_file_audioproperties(file);
+
+    //     // Check if the tag is available
+    //     if (tag != NULL) {
+    //         printf("-- TAG (basic) --\n");
+    //         printf("title   - \"%s\"\n", taglib_tag_title(tag));
+    //         printf("artist  - \"%s\"\n", taglib_tag_artist(tag));
+    //         printf("album   - \"%s\"\n", taglib_tag_album(tag));
+    //         printf("year    - \"%u\"\n", taglib_tag_year(tag));
+    //         printf("comment - \"%s\"\n", taglib_tag_comment(tag));
+    //         printf("track   - \"%u\"\n", taglib_tag_track(tag));
+    //         printf("genre   - \"%s\"\n", taglib_tag_genre(tag));
+    //     }
+
+    //     taglib_tag_free_strings();
+
+    //     // Retrieve properties map and complex keys if needed
+    //     // char **propertiesMap = taglib_property_keys(file);
+    //     // char **complexKeys = taglib_complex_property_keys(file);
+
+    //     // You can now do something with propertiesMap and complexKeys if
+    //     needed
+
+    //     // Free the file object to release resources
+    //     taglib_file_free(file);
+    // } else {
+    //     printf("Error opening the file.\n");
+    // }
+
+    // Check if the file was opened correctly
+    // if (file != NULL) {
+    //     // Retrieve the tag
+    //     TagLib_Tag *tag = taglib_file_tag(file);
+
+    //     // Check if the tag is available
+    //     if (tag != NULL) {
+    //         // Print existing tag information (optional)
+    //         printf("Original title: %s\n", taglib_tag_title(tag));
+
+    //         // Modify the tag fields
+    //         taglib_tag_set_title(tag, "New Title");
+    //         taglib_tag_set_artist(tag, "New Artist");
+    //         taglib_tag_set_album(tag, "New Album");
+    //         taglib_tag_set_year(tag, 2025);
+    //         taglib_tag_set_comment(tag, "This is a comment");
+    //         taglib_tag_set_track(tag, 5);
+    //         taglib_tag_set_genre(tag, "New Genre");
+
+    //         // Save the changes to the file
+    //         if (taglib_file_save(file)) {
+    //             printf("Tags saved successfully!\n");
+    //         } else {
+    //             printf("Error saving tags to file.\n");
+    //         }
+    //     }
+
+    //     taglib_tag_free_strings();
+
+    //     // Free the file object to release resources
+    //     taglib_file_free(file);
+    // } else {
+    //     printf("Error opening the file.\n");
+    // }
+
+    // AVFormatContext *fmt_ctx = NULL;
+    // if (avformat_open_input(&fmt_ctx, "m/IronLotus.mp3", NULL, NULL) < 0) {
+    //     printf("Failed to open file\n");
+    //     return -1;
+    // }
+
+    // AVDictionary *meta = fmt_ctx->metadata;
+
+    // av_dict_set(&meta, "artist", "Artist1", AV_DICT_APPEND);
+
+    // if (avformat_write_header(fmt_ctx, NULL) < 0) {
+    //     printf("Failed to write header.\n");
+    //     return -1;
+    // }
+
+    // avformat_close_input(&fmt_ctx);
+
+    // int ret = tf_init(); // Todo handle errors
+    // tf_sqlite3_init("../sqlite.db");
+
+    // uint8_t *data;
+    // size_t size = f_read_file("m/IronLotus.wav", &data);
+
+    // if (size < 0) {
+    //     free(data);
+    //     goto end;
+    // }
+
+    // AAudioContext *audio_ctx;
+    // if (a_audio_context_init(data, size, &audio_ctx) != 0)
+    //     fprintf(stderr, "audio context init");
+
+    // audio_ctx->fmt_ctx->metadata;
+
+    // a_audio_free_context(audio_ctx);
+
+    /*c Play A Song
+    ```
+    SongID *song_id = tf_register("m/IronLotus.wav");
+
+    PlaybackQueue *playback_queue = tf_playback_queue_init();
+
+    tf_add_to_queue(playback_queue, song_id);
+
+    tf_add_playback_queue(playback_queue);
+
+    tf_set_volume(0.5);
+
+    tf_play_head_queue();
+    ```
+    */
+
+    /*c Play A Song
+        ```
+    SongID *song_id = tf_register("m/IronLotus.wav");
+
+    SongMetadata *metadata = tf_read_song_metadata(song_id);
+
+    // Metadata library
+    mdl_set_title(metadata, "Hello world");
+    mdl_set_artist(metadata, "Mili");
+    mdl_add_tag(metadata, "Rock");
+
+    tf_write_song_metadata(metadata);
+    ```
+    */
+
+    // uint8_t *data;
+    // size_t size = f_read_file("m/IronLotus.wav", &data);
+
+    // if (size < 0) {
+    //     free(data);
+    //     goto end;
+    // }
+
+    // AAudioContext *audio_ctx;
+    // if (a_audio_context_init(data, size, &audio_ctx) != 0)
+    //     fprintf(stderr, "audio context init");
+
+    // AAudioVector *au_vec;
+    // if (a_audio_decode(audio_ctx, &au_vec) != 0)
+    //     fprintf(stderr, "audio could not be decoded");
+
+    // a_audio_free_context(audio_ctx);
 
 end:
-    // torinify_cleanup();
+    // a_audio_vector_free(au_vec);
 
-    if (ret < 0) {
-        fprintf(stderr, "Program failed!");
-        return -1;
-    }
+    tf_cleanup();
+
+    // if (ret < 0) {
+    //     fprintf(stderr, "Program failed!");
+    //     return -1;
+    // }
 
     // sqlite3 *db;
 

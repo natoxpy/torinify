@@ -4,17 +4,15 @@
 #include <stdlib.h>
 #include <string.h>
 
-AAudioVector *a_audio_vector_alloc(size_t *capacity) {
+AAudioVector *a_audio_vector_alloc(size_t capacity) {
     AAudioVector *au_vec = malloc(sizeof(AAudioVector));
 
     if (!au_vec) {
         return NULL;
     }
 
-    int cap = capacity != NULL && *capacity >= 1 ? *capacity : 1;
-
-    au_vec->ptr = calloc(cap, sizeof(uint8_t));
-    au_vec->capacity = cap;
+    au_vec->ptr = calloc(capacity, sizeof(uint8_t));
+    au_vec->capacity = capacity;
     au_vec->length = 0;
 
     return au_vec;
@@ -24,15 +22,17 @@ void a_audio_vector_free(AAudioVector *au_vec) {
     if (!au_vec)
         return;
 
-    free(au_vec->ptr);
+    if (au_vec->ptr != NULL)
+        free(au_vec->ptr);
+
     free(au_vec);
 }
 
 int a_audio_vector_init(AAudioVector **au_vec, uint8_t *data, size_t size) {
-    AAudioVector *audio_vec = a_audio_vector_alloc(&size);
+    AAudioVector *audio_vec = malloc(sizeof(AAudioVector));
 
-    if (audio_vec->ptr != NULL)
-        free(audio_vec->ptr);
+    if (!au_vec)
+        return -1;
 
     audio_vec->ptr = data;
     audio_vec->capacity = size;
@@ -65,4 +65,15 @@ int a_audio_vector_push(AAudioVector *au_vec, const uint8_t *data,
     au_vec->length += size;
 
     return 0;
+}
+
+AAudioContextBuffer *a_audio_vector_as_buffer(AAudioVector *au_vec) {
+    AAudioContextBuffer *au_buf = malloc(sizeof(AAudioContextBuffer));
+    if (!au_buf)
+        return NULL;
+
+    au_buf->ptr = au_vec->ptr;
+    au_buf->length = au_vec->length;
+
+    return au_buf;
 }

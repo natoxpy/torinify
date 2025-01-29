@@ -1,6 +1,7 @@
-CFLAGS += -g -fsanitize=address
+CFLAGS += -g -fsanitize=address 
 CFLAGS += -Iinclude
-LDFLAGS += -lavformat -lavcodec -lavutil -lswresample -lavfilter -lm -lsqlite3
+# CFLAGS += -Iexternal/taglib/build/include -Lexternal/taglib/build/lib
+LDFLAGS += -lavformat -lavcodec -lavutil -lswresample -lavfilter -lm -lsqlite3 -ltag_c -ltag -lstdc++ -lz
 
 SRC_DIR = src
 BUILD_DIR = build
@@ -18,13 +19,25 @@ all: $(LIBNAME) $(MAIN)
 MINIAUDIO_DIR = external/miniaudio
 MINIAUDIO_REPO = https://github.com/mackron/miniaudio.git
 
+TAGLIB_DIR = external/taglib
+TAGLIB_REPO = https://github.com/taglib/taglib.git
+
+external: $(MINIAUDIO_DIR) $(TAGLIB_DIR)
+
 $(MINIAUDIO_DIR): 
 	# Use to get updated MINIAUDIO.c and MINIAUDIO.h
 	# Must move to source manually 
+	mkdir -p $(MINIAUDIO_DIR)
 	git clone $(MINIAUDIO_REPO) $(MINIAUDIO_DIR)
 
-miniaudio: $(MINIAUDIO_DIR)
-	
+
+$(TAGLIB_DIR):
+	mkdir -p $(TAGLIB_DIR)
+	git clone $(TAGLIB_REPO) $(TAGLIB_DIR)	
+
+# LIBRARY ===> TAGLIB <===
+
+
 # Libraries 
 
 $(LIBNAME): $(OBJS)
@@ -40,4 +53,4 @@ $(MAIN): $(SRC_DIR)/main.c $(LIBNAME)
 	$(CC) -o $@ $< $(CFLAGS) -I $(SRC_DIR)/include -L $(BUILD_DIR) -lcore $(LDFLAGS)
 
 clean:
-	rm -rf $(BUILD_DIR) $(MINIAUDIO_SRC) external
+	rm -rf $(BUILD_DIR)  

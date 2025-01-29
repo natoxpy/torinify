@@ -54,7 +54,7 @@ int a_audio_decode(AAudioContext *au_ctx, AAudioVector **out_au_vec) {
     int ret = 0;
     AAudioVector *audio_vec;
 
-    if (!(audio_vec = a_audio_vector_alloc(NULL))) {
+    if (!(audio_vec = a_audio_vector_alloc(1))) {
         ret = -1;
         goto end;
     }
@@ -124,6 +124,7 @@ int a_audio_decode(AAudioContext *au_ctx, AAudioVector **out_au_vec) {
     }
 
     *out_au_vec = audio_vec;
+    ret = 0;
 
 end:
     av_packet_free(&packet);
@@ -131,6 +132,7 @@ end:
     swr_free(&swr_ctx);
 
     if (ret < 0) {
+        a_audio_vector_free(audio_vec);
         return -1;
     }
 
