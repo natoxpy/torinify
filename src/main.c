@@ -13,7 +13,7 @@ int main(int argc, char *argv[]) {
     int ret = tf_init(); // Todo handle errors
     tf_sqlite3_init("../sqlite.db");
 
-    ret = m_migrations(tgc->sqlite3);
+    ret = m_migrations(tgc->sqlite3, "../migrations/");
 
     // tf_sqlite3_migrations("../migrations")
 

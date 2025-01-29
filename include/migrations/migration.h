@@ -5,5 +5,5 @@
 #define TABLE_MIGRATIONS_NAME ".migrations"
 
 // return `0` on `success`
-int m_migrations(sqlite3 *db);
+int m_migrations(sqlite3 *db, char *migrations_dir);
 #endif
