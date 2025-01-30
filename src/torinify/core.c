@@ -1,4 +1,7 @@
+#include "errors/errors.h"
+#include "migrations/migration.h"
 #include <libavutil/samplefmt.h>
+#include <sqlite3.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <torinify/core.h>
@@ -7,20 +10,33 @@
 /// Torinify Global Context
 TorinifyContext *tgc = NULL;
 
-void tf_sqlite3_init(char *filename) {
+T_CODE tf_sqlite3_init(char *filename) {
     sqlite3 *db;
-    sqlite3_open(filename, &db);
+    int ret = sqlite3_open(filename, &db);
+
+    if (ret != SQLITE_OK) {
+        error_log("Could not open SQLITE file \"%s\"", filename);
+        return T_FAIL;
+    }
 
     tgc->sqlite3 = db;
+
+    return T_SUCCESS;
+}
+
+T_CODE tf_sqlite3_migrations(char *migrations_dir) {
+    return m_migrations(tgc->sqlite3, migrations_dir);
 }
 
 /// Initiates Torinify Global Context (`tgc`)
-int tf_init() {
+T_CODE tf_init() {
     int ret = 0;
     tgc = malloc(sizeof(TorinifyContext));
 
-    if (!tgc)
-        return -1;
+    if (!tgc) {
+        error_log("Could not allocate enough memory for TorinifyContext");
+        return T_FAIL;
+    }
 
     tgc->playback = NULL;
     tgc->sqlite3 = NULL;
@@ -28,7 +44,7 @@ int tf_init() {
     // if ((ret = pb_init(&tgc->playback)) < 0)
     //     return ret;
 
-    return 0;
+    return T_SUCCESS;
 }
 
 /// Cleans Torinify Global Context (`tgc`)
