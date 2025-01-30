@@ -10,6 +10,18 @@
 /// Torinify Global Context
 TorinifyContext *tgc = NULL;
 
+T_CODE tf_init_db(char *filename, char *migrations_dir) {
+    int ret;
+
+    if ((ret = tf_sqlite3_init(filename)) != T_SUCCESS)
+        return ret;
+
+    if ((ret = tf_sqlite3_migrations(migrations_dir)) != T_SUCCESS)
+        return ret;
+
+    return T_SUCCESS;
+}
+
 T_CODE tf_sqlite3_init(char *filename) {
     sqlite3 *db;
     int ret = sqlite3_open(filename, &db);

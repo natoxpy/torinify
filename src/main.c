@@ -11,13 +11,8 @@
 int main(int argc, char *argv[]) {
     int ret;
 
-    if ((ret = tf_init()) != T_SUCCESS)
-        goto end;
-
-    if ((ret = tf_sqlite3_init("../sqlite.db")) != T_SUCCESS)
-        goto end;
-
-    if ((ret = tf_sqlite3_migrations("../migrations")) == T_FAIL)
+    if ((ret = tf_init()) != T_SUCCESS ||
+        (ret = tf_init_db("../sqlite.db", "../migrations")) != T_SUCCESS)
         goto end;
 
 end:
