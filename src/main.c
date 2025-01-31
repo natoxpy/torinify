@@ -1,6 +1,7 @@
 /// Example: how to use Torinify
 #include "audio/audio.h"
 #include "errors/errors.h"
+#include "media/media.h"
 #include <libavutil/dict.h>
 #include <sqlite3.h>
 #include <stdbool.h>
@@ -15,6 +16,7 @@ int main(int argc, char *argv[]) {
         (ret = tf_init_db("../sqlite.db", "../migrations")) != T_SUCCESS)
         goto end;
 
+    M_scan();
 end:
     tf_cleanup();
 

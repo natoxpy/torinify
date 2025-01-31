@@ -30,13 +30,11 @@ $(MINIAUDIO_DIR):
 	mkdir -p $(MINIAUDIO_DIR)
 	git clone $(MINIAUDIO_REPO) $(MINIAUDIO_DIR)
 
-
 $(TAGLIB_DIR):
 	mkdir -p $(TAGLIB_DIR)
 	git clone $(TAGLIB_REPO) $(TAGLIB_DIR)	
 
 # LIBRARY ===> TAGLIB <===
-
 
 # Libraries 
 
