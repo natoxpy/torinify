@@ -1,5 +1,5 @@
-#ifndef _MIGRATIONS_MIGRATION_H
-#define _MIGRATIONS_MIGRATION_H
+#ifndef _DB_MIGRATION_H
+#define _DB_MIGRATION_H
 #include <errors/errors.h>
 #include <sqlite3.h>
 

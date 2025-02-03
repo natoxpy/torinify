@@ -1,7 +1,7 @@
-#include "errors/errors.h"
 #include <audio/audio.h>
+#include <db/migrations.h>
 #include <dirent.h>
-#include <migrations/migration.h>
+#include <errors/errors.h>
 #include <sqlite3.h>
 #include <stdint.h>
 #include <stdio.h>

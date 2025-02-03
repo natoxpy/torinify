@@ -1,5 +1,5 @@
-#include "errors/errors.h"
-#include "migrations/migration.h"
+#include <db/migrations.h>
+#include <errors/errors.h>
 #include <libavutil/samplefmt.h>
 #include <sqlite3.h>
 #include <stdio.h>

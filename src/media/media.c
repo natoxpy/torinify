@@ -1,4 +1,4 @@
-#include "errors/errors.h"
+#include <errors/errors.h>
 #include <linux/limits.h>
 #include <media/media.h>
 #include <sqlite3.h>
@@ -7,16 +7,16 @@
 #include <string.h>
 
 static const char *SQL_INSERT_TO_AUDIOSOURCE =
-    "INSERT INTO AudioSource (path) VALUES (?);";
+    "INSERT INTO MediaSource (path) VALUES (?);";
 
 static const char *SQL_GET_ALL_AUDIOSOURCE =
-    "select id, path from AudioSource;";
+    "select id, path from MediaSource;";
 
 static const char *SQL_GET_ONE_AUDIOSOURCE =
-    "select id, path from AudioSource where id = ?;";
+    "select id, path from MediaSource where id = ?;";
 
 static const char *SQL_REMOVE_AUDIOSOURCE =
-    "DELETE FROM AudioSource where id = ?;";
+    "DELETE FROM MediaSource where id = ?;";
 
 void M_free_sources(MediaSources *media_srcs) {
     if (!media_srcs)
@@ -226,7 +226,55 @@ cleanup:
     return T_SUCCESS;
 }
 
-T_CODE M_scan() {
-    ///
-    return T_SUCCESS;
+int M_supported_music_file(char *fullpath) {
+    FILE *file = fopen(fullpath, "rb");
+
+    if (!file) {
+        error_log("Could not open file path \"%s\"", fullpath);
+        return 0;
+    }
+
+    unsigned char buffer[4];
+    size_t read_size = fread(buffer, 1, 4, file);
+    fclose(file);
+
+    if (read_size < 4)
+        return 0; // File too small to be a music file
+
+    // MP3 (ID3 tag)
+    if (buffer[0] == 0x49 && buffer[1] == 0x44 && buffer[2] == 0x33) {
+        return 1; // MP3
+    }
+    // FLAC (fLaC)
+    else if (buffer[0] == 0x66 && buffer[1] == 0x4C && buffer[2] == 0x61 &&
+             buffer[3] == 0x43) {
+        return 1; // FLAC
+    }
+    // WAV (RIFF)
+    else if (buffer[0] == 0x52 && buffer[1] == 0x49 && buffer[2] == 0x46 &&
+             buffer[3] == 0x46) {
+        return 1; // WAV
+    }
+    // M4A (ftyp)
+    else if (buffer[0] == 0x66 && buffer[1] == 0x74 && buffer[2] == 0x79 &&
+             buffer[3] == 0x70) {
+        return 1; // M4A
+    }
+    // OPUS (Opus)
+    else if (buffer[0] == 0x4F && buffer[1] == 0x70 && buffer[2] == 0x75 &&
+             buffer[3] == 0x73) {
+        return 1; // OPUS
+    }
+    // OGG (OggS)
+    else if (buffer[0] == 0x4F && buffer[1] == 0x67 && buffer[2] == 0x67 &&
+             buffer[3] == 0x53) {
+        return 1; // OGG
+    }
+    // MIDI (MThd)
+    else if (buffer[0] == 0x4D && buffer[1] == 0x54 && buffer[2] == 0x68 &&
+             buffer[3] == 0x64) {
+        return 1; // MIDI
+    }
+
+    return 0; // Not a recognized music file format
 }

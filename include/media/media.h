@@ -16,6 +16,14 @@ typedef struct {
     size_t size;
 } MediaSources;
 
+typedef struct {
+} MediaAlbum;
+
+typedef struct {
+    char *title;
+    MediaAlbum *album;
+} MediaMusic;
+
 /// Adds realpath of `dirname` to database
 ///
 /// Returns `T_FAIL` on any error, outputs to `error_print_log()` for the fail
@@ -33,6 +41,12 @@ T_CODE M_remove_source(sqlite3 *db, int id);
 /// Perform an algorithm that looks at all the sources inside the database,
 /// reads all the metadata and adds it to the database, it goes to each file one
 /// by one for every source registered by the database
-T_CODE M_scan();
+T_CODE M_scan(sqlite3 *db);
+
+T_CODE M_scan_dir(sqlite3 *db, char *dirpath, int source_id);
+
+T_CODE M_scan_file(sqlite3 *db, char *filepath, int source);
+
+int M_supported_music_file(char *fullpath);
 
 #endif
