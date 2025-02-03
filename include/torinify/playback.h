@@ -1,6 +1,7 @@
 #ifndef _TORINIFY_PLAYBACK_H
 #define _TORINIFY_PLAYBACK_H
 
+#include <errors/errors.h>
 #include <stdint.h>
 typedef struct PlaybackContext PlaybackContext;
 
@@ -8,7 +9,7 @@ typedef struct PlaybackContext PlaybackContext;
 struct PlaybackContext {};
 
 /// return less than zero indicate errors
-int pb_init(PlaybackContext **pbc);
+T_CODE pb_init(PlaybackContext **pbc);
 
 void pb_free(PlaybackContext *pbc);
 

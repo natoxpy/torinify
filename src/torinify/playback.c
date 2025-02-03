@@ -3,12 +3,13 @@
 // Often this will be used directly by torinify_music_player
 // but it can be called externally directly as well
 
+#include <errors/errors.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <torinify/playback.h>
 
-int pb_init(PlaybackContext **pbc) {
+T_CODE pb_init(PlaybackContext **pbc) {
     *pbc = malloc(sizeof(PlaybackContext));
 
     if (!pbc) {

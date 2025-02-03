@@ -53,7 +53,7 @@ T_CODE tf_init() {
     tgc->playback = NULL;
     tgc->sqlite3 = NULL;
 
-    // if ((ret = pb_init(&tgc->playback)) < 0)
+    // if ((ret = pb_init(&tgc->playback)) != T_SUCCESS)
     //     return ret;
 
     return T_SUCCESS;

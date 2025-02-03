@@ -114,7 +114,9 @@ int a_audio_decode(AAudioContext *au_ctx, AAudioVector **out_au_vec) {
                        av_get_bytes_per_sample(AV_SAMPLE_FMT_FLT) *
                        frame->ch_layout.nb_channels;
 
-            // print_frame(output_buffer, size);
+            a_audio_vector_push(audio_vec, output_buffer,
+                                output_nb_samples * sizeof(float) *
+                                    au_ctx->codec_ctx->ch_layout.nb_channels);
 
             av_freep(&output_buffer);
             av_frame_unref(frame);

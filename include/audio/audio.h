@@ -1,5 +1,6 @@
 #ifndef _AUDIO_FILE_H
 #define _AUDIO_FILE_H
+#include <errors/errors.h>
 #include <stdint.h>
 int f_read_file(char *filename, uint8_t **file_data);
 #endif
@@ -95,9 +96,25 @@ int a_resample(uint8_t *in_data, uint8_t *out_data);
 #define AUDIO_PLAYBACK_H
 
 typedef struct APlaybackFeed APlaybackFeed;
-struct APlaybackFeed {};
+struct APlaybackFeed {
+    ma_device *device;
+    AAudioVector *data;
+    float volume;
+    int channels;
+    int samples_played;
+    int sample_rate;
+    int paused;
+};
 
-void a_playback_callback(ma_device *pDevice, void *pOutput, const void *pInput,
-                         ma_uint32 frameCount);
+APlaybackFeed *a_playback_feed_alloc();
+void a_playback_feed_free(APlaybackFeed *playback_feed);
+T_CODE a_playback_feed_init(APlaybackFeed **pb, AAudioVector *au_vec,
+                            int sample_rate, int channels);
+
+T_CODE a_playback(APlaybackFeed *playback_feed);
+void a_pause(APlaybackFeed *playback_feed);
+void a_play(APlaybackFeed *playback_feed);
+void a_set_current_time(APlaybackFeed *playback_feed,
+                        unsigned long miliseconds);
 
 #endif
