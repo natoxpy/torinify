@@ -9,15 +9,19 @@
 #include <stdlib.h>
 #include <torinify/playback.h>
 
-T_CODE pb_init(PlaybackContext **pbc) {
-    *pbc = malloc(sizeof(PlaybackContext));
+T_CODE pb_init(PlaybackContext **playback_ctx) {
+    PlaybackContext *pbc = malloc(sizeof(PlaybackContext));
 
     if (!pbc) {
-        fprintf(stderr, "Memory allocation failed for Playback Context");
-        return -1;
+        error_log("Memory allocation failed for Playback Context");
+        return T_FAIL;
     }
 
-    return 0;
+    pbc->feed = NULL;
+
+    *playback_ctx = pbc;
+
+    return T_SUCCESS;
 }
 
 void pb_free(PlaybackContext *pbc) {
@@ -26,7 +30,3 @@ void pb_free(PlaybackContext *pbc) {
 
     free(pbc);
 }
-
-int pb_set_buffer(PlaybackContext *pbc, uint8_t *buf, int size) { return 0; }
-
-int pb_play_file(PlaybackContext *pbc, char *filename) { return 0; }

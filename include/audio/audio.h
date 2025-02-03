@@ -93,7 +93,7 @@ int a_resample(uint8_t *in_data, uint8_t *out_data);
 #endif
 
 #ifndef _AUDIO_PLAYBACK_H
-#define AUDIO_PLAYBACK_H
+#define _AUDIO_PLAYBACK_H
 
 typedef struct APlaybackFeed APlaybackFeed;
 struct APlaybackFeed {

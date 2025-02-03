@@ -96,6 +96,8 @@ void data_callback(ma_device *pDevice, void *pOutput, const void *pInput,
 
     // Fill remaining samples with silence if there wasn't enough data
     if (samplesToCopy < frameCount * pDevice->playback.channels) {
+        a_pause(playback_feed);
+
         memset((float *)pOutput + samplesToCopy, 0,
                (frameCount * pDevice->playback.channels - samplesToCopy) *
                    sizeof(float));
@@ -144,6 +146,7 @@ void a_pause(APlaybackFeed *playback_feed) {
     if (!playback_feed->device)
         return;
 
+    playback_feed->paused = 1;
     ma_device_stop(playback_feed->device);
 }
 
@@ -151,6 +154,7 @@ void a_play(APlaybackFeed *playback_feed) {
     if (!playback_feed->device)
         return;
 
+    playback_feed->paused = 0;
     ma_device_start(playback_feed->device);
 }
 
