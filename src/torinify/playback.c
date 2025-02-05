@@ -28,5 +28,8 @@ void pb_free(PlaybackContext *pbc) {
     if (pbc == NULL)
         return;
 
+    if (pbc->feed)
+        a_playback_feed_free(pbc->feed);
+
     free(pbc);
 }

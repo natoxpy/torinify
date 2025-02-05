@@ -135,8 +135,6 @@ T_CODE a_playback(APlaybackFeed *playback_feed) {
         return -1; // Failed to initialize the device.
     }
 
-    ma_device_start(device);
-
     playback_feed->device = device;
 
     return T_SUCCESS;
@@ -163,6 +161,13 @@ void a_set_current_time(APlaybackFeed *playback_feed,
     if (!playback_feed->device)
         return;
 
-    int samples_ms = playback_feed->sample_rate / 1000;
+    long samples_ms = playback_feed->sample_rate / 1000;
     playback_feed->samples_played = samples_ms * miliseconds;
+}
+
+long a_get_current_time(APlaybackFeed *playback_feed) {
+    float samples_ms = (float)playback_feed->samples_played /
+                       (float)playback_feed->sample_rate;
+
+    return (long)(samples_ms * 1000);
 }

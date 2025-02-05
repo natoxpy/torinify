@@ -21,6 +21,14 @@ T_CODE tf_sqlite3_migrations(char *dirpath);
 
 T_CODE tf_init_db(char *filename, char *migrations_dir);
 
+// Playback
+T_CODE tf_set_src(char *filename);
+T_CODE tf_play();
+T_CODE tf_pause();
+int tf_get_paused();
+void tf_set_current_time(long miliseconds);
+long tf_get_current_time();
+
 // Music
 T_CODE tf_register_source(char *dirpath);
 T_CODE tf_scan_sources();

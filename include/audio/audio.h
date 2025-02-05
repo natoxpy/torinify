@@ -116,5 +116,6 @@ void a_pause(APlaybackFeed *playback_feed);
 void a_play(APlaybackFeed *playback_feed);
 void a_set_current_time(APlaybackFeed *playback_feed,
                         unsigned long miliseconds);
+long a_get_current_time(APlaybackFeed *playback_feed);
 
 #endif

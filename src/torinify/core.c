@@ -72,3 +72,46 @@ void tf_cleanup() {
 
     free(tgc);
 }
+
+T_CODE tf_set_src(char *filename) {
+    uint8_t *data;
+    int size = f_read_file(filename, &data);
+
+    AAudioContext *audio_ctx;
+    if (a_audio_context_init(data, size, &audio_ctx) != 0)
+        fprintf(stderr, "audio context init");
+
+    int sample_rate = audio_ctx->codec_ctx->sample_rate;
+    int nb_channels = audio_ctx->codec_ctx->ch_layout.nb_channels;
+
+    AAudioVector *au_vec;
+    if (a_audio_decode(audio_ctx, &au_vec) != 0)
+        fprintf(stderr, "audio could not be decoded");
+    a_audio_free_context(audio_ctx);
+
+    APlaybackFeed *pbfeed;
+    a_playback_feed_init(&pbfeed, au_vec, sample_rate, nb_channels);
+    a_playback(pbfeed);
+
+    tgc->playback->feed = pbfeed;
+
+    return T_SUCCESS;
+}
+
+T_CODE tf_play() {
+    a_play(tgc->playback->feed);
+    return T_SUCCESS;
+}
+
+T_CODE tf_pause() {
+    a_pause(tgc->playback->feed);
+    return T_SUCCESS;
+}
+
+int tf_get_paused() { return tgc->playback->feed->paused; }
+
+void tf_set_current_time(long miliseconds) {
+    a_set_current_time(tgc->playback->feed, miliseconds);
+}
+
+long tf_get_current_time() { return a_get_current_time(tgc->playback->feed); }
