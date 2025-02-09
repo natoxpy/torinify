@@ -103,7 +103,9 @@ T_CODE M_scan_file(sqlite3 *db, char *filepath, int source) {
 
     MusicRow *music_row;
 
-    ret = DB_get_one_music_where_fullpath(db, &music_row, fullpath);
+    ret = DB_query_music_single(
+        db, &music_row,
+        (SQLQuery){.by = DB_QUERY_BY_FULLPATH, {.fullpath = fullpath}});
 
     if (ret != TDB_SUCCESS || music_row != NULL) {
         DB_music_row_free(music_row);

@@ -1,3 +1,4 @@
+#include "errors/errors.h"
 #include <db/exec.h>
 #include <db/sql.h>
 #include <db/tables.h>
@@ -38,6 +39,21 @@ void DB_music_row_free(MusicRow *mrow) {
         free(mrow->fullpath);
 
     free(mrow);
+}
+
+void DB_vec_music_row_free(Vec *vec) {
+    if (vec == NULL)
+        return;
+
+    MusicRow *row;
+
+    for (int i = 0; i < vec->length; i++) {
+        row = vec->data + (i * vec->element_size);
+        free(row->title);
+        free(row->fullpath);
+    }
+
+    vec_free(vec);
 }
 
 // Helpers
@@ -233,36 +249,77 @@ cleanup:
 }
 // Get
 
-TDB_CODE DB_get_one_music_where_id(sqlite3 *db, MusicRow **out_music_row,
-                                   int id) {
+TDB_CODE get_one_music_collect(sqlite3_stmt *stmt, MusicRow **music_row_out) {
+    MusicRow *music_row;
+    if (*music_row_out != NULL)
+        music_row = *music_row_out;
+    else if (DB_music_row_alloc(&music_row) != TDB_SUCCESS)
+        return TDB_FAIL;
+
+    music_row->id = get_column_int(stmt, 0);
+    music_row->title = get_column_text(stmt, 1);
+    music_row->fullpath = get_column_text(stmt, 2);
+    music_row->source = get_column_int(stmt, 3);
+    music_row->album = get_column_int(stmt, 4);
+    music_row->metadata = get_column_int(stmt, 5);
+
+    *music_row_out = music_row;
+
+    return TDB_SUCCESS;
+}
+
+TDB_CODE DB_query_music_single(sqlite3 *db, MusicRow **out_music_row,
+                               SQLQuery query) {
     int ret;
     sqlite3_stmt *stmt;
     MusicRow *music_row;
 
     char sql[255];
-    join_sql(sql, sizeof(sql), DB_SQL_MUSIC_SELECT, DB_SQL_WHERE_ID);
+
+    switch (query.by) {
+    case DB_QUERY_BY_ID:
+        join_sql(sql, sizeof(sql), DB_SQL_MUSIC_SELECT, DB_SQL_WHERE_ID);
+        break;
+    case DB_QUERY_BY_TITLE:
+        join_sql(sql, sizeof(sql), DB_SQL_MUSIC_SELECT, DB_SQL_WHERE_TITLE);
+        break;
+    case DB_QUERY_BY_FTS5_TITLE:
+        join_sql(sql, sizeof(sql), DB_SQL_MUSIC_SEARCH,
+                 DB_SQL_WHERE_TITLE_MATCH);
+        break;
+    case DB_QUERY_BY_FULLPATH:
+        join_sql(sql, sizeof(sql), DB_SQL_MUSIC_SELECT, DB_SQL_WHERE_FULLPATH);
+        break;
+    default:
+        goto cleanup;
+    };
 
     if ((ret = prepare(db, sql, &stmt)) != TDB_SUCCESS)
         goto cleanup;
 
-    if (bind_int(db, stmt, 1, id) != TDB_SUCCESS)
+    switch (query.by) {
+    case DB_QUERY_BY_ID:
+        ret = bind_int(db, stmt, 1, query.value.id);
+        break;
+    case DB_QUERY_BY_TITLE:
+    case DB_QUERY_BY_FTS5_TITLE:
+        ret = bind_text(db, stmt, 1, query.value.title);
+        break;
+    case DB_QUERY_BY_FULLPATH:
+        ret = bind_text(db, stmt, 1, query.value.fullpath);
+        break;
+    default:
+        goto cleanup;
+    }
+
+    if (ret != TDB_SUCCESS)
         goto cleanup;
 
     ret = sqlite3_step(stmt);
 
     if (ret == SQLITE_ROW) {
-        if (DB_music_row_alloc(&music_row) != TDB_SUCCESS)
-            goto cleanup;
-
-        music_row->id = get_column_int(stmt, 0);
-        music_row->title = get_column_text(stmt, 1);
-        music_row->fullpath = get_column_text(stmt, 2);
-        music_row->source = get_column_int(stmt, 3);
-        music_row->album = get_column_int(stmt, 4);
-        music_row->metadata = get_column_int(stmt, 5);
-
+        ret = get_one_music_collect(stmt, &music_row);
         *out_music_row = music_row;
-        ret = TDB_SUCCESS;
     } else if (ret == SQLITE_DONE) {
         DB_music_row_free(music_row);
         *out_music_row = NULL;
@@ -277,57 +334,42 @@ cleanup:
     if (stmt)
         sqlite3_finalize(stmt);
 
-    if (ret != TDB_SUCCESS && music_row)
+    if (ret != TDB_SUCCESS && music_row != NULL)
         DB_music_row_free(music_row);
 
     return ret;
 }
 
-TDB_CODE DB_get_one_music_where_fullpath(sqlite3 *db, MusicRow **out_music_row,
-                                         char *fullpath) {
-    int ret;
+TDB_CODE DB_query_music_all(sqlite3 *db, Vec **out_vec_music_row) {
+    int ret = TDB_SUCCESS;
     sqlite3_stmt *stmt;
-    MusicRow *music_row;
+    Vec *vec_music = vec_init(sizeof(MusicRow));
+
+    if (vec_music == NULL) {
+        ret = TDB_FAIL;
+        goto cleanup;
+    }
 
     char sql[255];
-    join_sql(sql, sizeof(sql), DB_SQL_MUSIC_SELECT, DB_SQL_WHERE_FULLPATH);
+    join_sql(sql, sizeof(sql), DB_SQL_MUSIC_SELECT, "");
 
     if ((ret = prepare(db, sql, &stmt)) != TDB_SUCCESS)
         goto cleanup;
 
-    if (bind_text(db, stmt, 1, fullpath) != TDB_SUCCESS)
-        goto cleanup;
+    MusicRow *music_row;
+    DB_music_row_alloc(&music_row);
 
-    ret = sqlite3_step(stmt);
-
-    if (ret == SQLITE_ROW) {
-        if (DB_music_row_alloc(&music_row) != TDB_SUCCESS)
-            goto cleanup;
-
-        music_row->id = get_column_int(stmt, 0);
-        music_row->title = get_column_text(stmt, 1);
-        music_row->fullpath = get_column_text(stmt, 2);
-        music_row->source = get_column_int(stmt, 3);
-        music_row->album = get_column_int(stmt, 4);
-        music_row->metadata = get_column_int(stmt, 5);
-
-        *out_music_row = music_row;
-        ret = TDB_SUCCESS;
-    } else if (ret == SQLITE_DONE) {
-        *out_music_row = NULL;
-        ret = TDB_SUCCESS;
-    } else {
-        error_log("Sqlite return value was unnexpected, error message \"%s\"",
-                  sqlite3_errmsg(db));
-        ret = TDB_FAIL;
+    while (sqlite3_step(stmt) != SQLITE_DONE) {
+        ret = get_one_music_collect(stmt, &music_row);
+        vec_push(vec_music, music_row);
     }
+
+    free(music_row);
+    *out_vec_music_row = vec_music;
 
 cleanup:
     if (stmt)
         sqlite3_finalize(stmt);
-
-    if (ret != TDB_SUCCESS && music_row)
-        DB_music_row_free(music_row);
 
     return ret;
 }

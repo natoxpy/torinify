@@ -3,6 +3,8 @@
 
 const static char *DB_SQL_WHERE_ID = "WHERE id = ?";
 const static char *DB_SQL_WHERE_FULLPATH = "WHERE fullpath = ?";
+const static char *DB_SQL_WHERE_TITLE = "WHERE title = ?";
+const static char *DB_SQL_WHERE_TITLE_MATCH = "WHERE title MATCH ?";
 
 #endif
 
@@ -23,11 +25,11 @@ const static char *DB_SQL_MUSIC_INSERT =
     "VALUES (?,?,?,?,?);";
 
 const static char *DB_SQL_MUSIC_SELECT =
-    "SELECT id, title, metadata, album, source, fullpath FROM Music %s;";
+    "SELECT id, title, fullpath, source, album, metadata FROM Music %s;";
 
 const static char *DB_SQL_MUSIC_SEARCH =
-    "SELECT * FROM Music"
-    "WHERE id IN (SELECT rowid FROM Music_FTS WHERE title MATCH '?')";
+    "SELECT id, title, fullpath, source, album, metadata FROM Music "
+    "WHERE id IN (SELECT rowid FROM MusicFTS %s);";
 
 #endif
 
