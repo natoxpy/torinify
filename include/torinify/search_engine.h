@@ -1,11 +1,10 @@
 #ifndef _TORINIFY_SEARCH_ENGINE_H
 #define _TORINIFY_SEARCH_ENGINE_H
 #include <sqlite3.h>
-#include <sys/types.h>
 #include <utils/generic_vec.h>
 
 typedef struct {
-    u_int32_t rowid;
+    uint32_t rowid;
     char *title;
     char *album;
     Vec *alt_titles;
@@ -13,7 +12,7 @@ typedef struct {
 } SearchContext;
 
 typedef struct {
-    u_int32_t rowid;
+    uint32_t rowid;
     double distance;
     char *title;
 } SearchResult;

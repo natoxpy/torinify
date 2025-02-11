@@ -47,7 +47,7 @@ T_CODE M_register_source(sqlite3 *db, char *dirname) {
     int ret;
 
     char fullpath[4096];
-    realpath(dirname, fullpath);
+    M_realpath(dirname, fullpath);
 
     ret = sqlite3_prepare_v2(db, SQL_INSERT_TO_AUDIOSOURCE, -1, &stmt, NULL);
     if (ret != SQLITE_OK) {
