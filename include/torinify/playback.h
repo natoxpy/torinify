@@ -1,7 +1,7 @@
 #ifndef _TORINIFY_PLAYBACK_H
 #define _TORINIFY_PLAYBACK_H
 
-#include "audio/audio.h"
+#include <audio/audio.h>
 #include <errors/errors.h>
 #include <stdint.h>
 typedef struct PlaybackContext PlaybackContext;

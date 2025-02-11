@@ -71,7 +71,7 @@ int fmt_ctx_audio_ctx(AAudioContext *audio_ctx, AAudioContextBuffer *au_buf) {
     }
 
     int avio_ctx_buffer_size = 4096;
-    uint8_t *avio_ctx_buffer = malloc(avio_ctx_buffer_size);
+    uint8_t *avio_ctx_buffer = av_malloc(avio_ctx_buffer_size);
 
     if (avio_ctx_buffer == NULL) {
         ret = -1;
