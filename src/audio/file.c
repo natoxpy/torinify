@@ -7,7 +7,7 @@ int f_read_file(char *filename, uint8_t **file_data) {
     uint8_t *data = NULL;
     int size = 0;
 
-    FILE *fp = fopen(filename, "r");
+    FILE *fp = fopen(filename, "rb");
 
     if (fp != NULL) {
         if (fseek(fp, 0L, SEEK_END) == 0) {

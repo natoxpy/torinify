@@ -16,7 +16,12 @@
 #include <utils/levenshtein.h>
 
 int main(int argc, char *argv[]) {
-    int ret;
+    int ret = T_FAIL;
+
+    if (argc < 2) {
+        printf("Usage: %s <file>\n", argv[0]);
+        goto end;
+    }
 
     if ((ret = tf_init()) != T_SUCCESS ||
         (ret = tf_init_db("../../sqlite.db", "../../migrations")) != T_SUCCESS)
@@ -29,12 +34,11 @@ int main(int argc, char *argv[]) {
 
     Vec *search_results = NULL;
 
-    s_process_search_multi(search_ctx, "grownups", &search_results, 0.0, 12);
+    // s_process_search_multi(search_ctx, "grownups", &search_results, 0.0, 12);
 
-    SearchResult *best = vec_get(search_results, 0);
+    // SearchResult *best = vec_get(search_results, 0);
 
-    tf_set_src("/home/toxpy/Music/server/K_DA/MORE (2020)/K+DA - MORE - 01 - "
-               "MORE.mp3");
+    tf_set_src(argv[1]);
     tf_play();
 
     scanf("hello");

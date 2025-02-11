@@ -24,6 +24,8 @@ typedef struct {
     MediaAlbum *album;
 } MediaMusic;
 
+T_CODE M_realpath(const char *filepath, char *fullpath);
+
 /// Adds realpath of `dirname` to database
 ///
 /// Returns `T_FAIL` on any error, outputs to `error_print_log()` for the fail

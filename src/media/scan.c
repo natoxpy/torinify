@@ -1,12 +1,25 @@
 #include <db/exec.h>
-#include <dirent.h>
 #include <errors/errors.h>
+#include <limits.h>
 #include <media/media.h>
 #include <sqlite3.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <taglib/tag_c.h>
+
+#ifndef PATH_MAX
+#define PATH_MAX 1024
+#endif
+
+#ifdef _WIN32
+#include <windows.h>
+#define realpath(N, R) _fullpath((R), (N), PATH_MAX)
+#else
+#include <dirent.h>
+#include <sys/types.h>
+#include <unistd.h>
+#endif
 
 /// char fullpath[PATH_MAX];
 T_CODE M_realpath(const char *filepath, char *fullpath) {
@@ -45,17 +58,58 @@ cleanup:
 
 T_CODE M_scan_dir(sqlite3 *db, char *dirpath, int source_id) {
     int ret = T_SUCCESS;
-    DIR *dp = NULL;
-    struct dirent *entry;
 
     char path[PATH_MAX];
 
     if ((ret = M_realpath(dirpath, path)) != T_SUCCESS)
-        goto cleanup;
+        return ret;
 
-    if ((dp = opendir(path)) == NULL) {
+#ifdef _WIN32
+    WIN32_FIND_DATA findFileData;
+    HANDLE hFind = INVALID_HANDLE_VALUE;
+
+    // Append the wildcard to search for all files and directories
+    char search_path[PATH_MAX];
+    snprintf(search_path, PATH_MAX, "%s\\*", path);
+
+    hFind = FindFirstFile(search_path, &findFileData);
+    if (hFind == INVALID_HANDLE_VALUE) {
+        error_log("Could not open directory \"%s\"", path);
+        return T_FAIL;
+    }
+
+    do {
+        // Skip '.' and '..' entries
+        if (strcmp(findFileData.cFileName, ".") == 0 ||
+            strcmp(findFileData.cFileName, "..") == 0)
+            continue;
+
+        char entry_path[PATH_MAX];
+        snprintf(entry_path, PATH_MAX, "%s\\%s", path, findFileData.cFileName);
+
+        if (findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+            ret = M_scan_dir(db, entry_path, source_id);
+            if (ret != T_SUCCESS)
+                break;
+        } else {
+            if (M_supported_music_file(entry_path)) {
+                ret = M_scan_file(db, entry_path, source_id);
+                if (ret != T_SUCCESS) {
+                    error_log("Could not scan file \"%s\"", entry_path);
+                    break;
+                }
+            }
+        }
+    } while (FindNextFile(hFind, &findFileData) != 0);
+
+    FindClose(hFind);
+#else
+    DIR *dp = opendir(path);
+    struct dirent *entry;
+
+    if (dp == NULL) {
         error_log("Could not open path \"%s\"", path);
-        goto cleanup;
+        return T_FAIL;
     }
 
     while ((entry = readdir(dp)) != NULL) {
@@ -69,22 +123,19 @@ T_CODE M_scan_dir(sqlite3 *db, char *dirpath, int source_id) {
         if (entry->d_type == DT_DIR) {
             ret = M_scan_dir(db, entry_path, source_id);
             if (ret != T_SUCCESS)
-                goto cleanup;
+                break;
         } else if (entry->d_type == DT_REG &&
                    M_supported_music_file(entry_path)) {
-
             ret = M_scan_file(db, entry_path, source_id);
-
             if (ret != T_SUCCESS) {
                 error_log("Could not scan file \"%s\"", entry_path);
-                goto cleanup;
+                break;
             }
         }
     }
 
-cleanup:
-    if (dp)
-        closedir(dp);
+    closedir(dp);
+#endif
 
     return ret;
 }
