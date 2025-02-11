@@ -1,7 +1,6 @@
 #include <db/exec.h>
 #include <dirent.h>
 #include <errors/errors.h>
-#include <linux/limits.h>
 #include <media/media.h>
 #include <sqlite3.h>
 #include <stdio.h>
