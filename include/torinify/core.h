@@ -1,8 +1,9 @@
 #ifndef _TORINIFY_CORE_H
 #define _TORINIFY_CORE_H
-#include "errors/errors.h"
+#include <errors/errors.h>
 #include <sqlite3.h>
 #include <torinify/playback.h>
+#include <utils/generic_vec.h>
 
 typedef struct TorinifyContext TorinifyContext;
 struct TorinifyContext {
@@ -32,6 +33,9 @@ long tf_get_current_time();
 // Music
 T_CODE tf_register_source(char *dirpath);
 T_CODE tf_scan_sources();
+
+/// results contain `Struct SearchResult`
+void tf_search(char *query, double threshold, Vec **results);
 
 // END - MUSIC
 

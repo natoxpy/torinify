@@ -1,3 +1,4 @@
+#include "torinify/search_engine.h"
 #include <db/migrations.h>
 #include <errors/errors.h>
 #include <libavutil/samplefmt.h>
@@ -115,3 +116,10 @@ void tf_set_current_time(long miliseconds) {
 }
 
 long tf_get_current_time() { return a_get_current_time(tgc->playback->feed); }
+
+void tf_search(char *query, double threshold, Vec **results) {
+    Vec *search_ctx = NULL;
+    s_vec_search_context_init(tgc->sqlite3, &search_ctx);
+    s_process_search(search_ctx, query, results, threshold);
+    s_vec_search_context_free(search_ctx);
+}
