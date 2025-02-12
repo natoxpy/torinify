@@ -6,7 +6,6 @@
 #include <string.h>
 #include <time.h>
 #include <torinify/search_engine.h>
-#include <unistd.h>
 #include <utils/levenshtein.h>
 
 typedef struct {
@@ -125,7 +124,7 @@ int result_compare(const void *a, const void *b) {
     if (as->distance < bs->distance)
         return 1;
     else
-        return 0;
+        return -1;
 }
 
 void sort_result_vec(Vec *results) {
