@@ -18,9 +18,9 @@ extern TorinifyContext *tgc;
 T_CODE tf_sqlite3_init(char *filename);
 
 /// Will call `m_migrations` with `tgc->sqlite3`
-T_CODE tf_sqlite3_migrations(char *dirpath);
+T_CODE tf_sqlite3_migrations();
 
-T_CODE tf_init_db(char *filename, char *migrations_dir);
+T_CODE tf_init_db(char *filename);
 
 // Playback
 T_CODE tf_set_src(char *filename);

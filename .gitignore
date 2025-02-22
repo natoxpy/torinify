@@ -4,3 +4,4 @@ examples/
 build/
 compile_flags.txt
 .vscode/
+docs/

@@ -1,3 +1,4 @@
+#include "db/sql.h"
 #include "torinify/search_engine.h"
 #include <db/migrations.h>
 #include <errors/errors.h>
@@ -11,13 +12,13 @@
 /// Torinify Global Context
 TorinifyContext *tgc = NULL;
 
-T_CODE tf_init_db(char *filename, char *migrations_dir) {
+T_CODE tf_init_db(char *filename) {
     int ret;
 
     if ((ret = tf_sqlite3_init(filename)) != T_SUCCESS)
         return ret;
 
-    if ((ret = tf_sqlite3_migrations(migrations_dir)) != T_SUCCESS)
+    if ((ret = tf_sqlite3_migrations()) != T_SUCCESS)
         return ret;
 
     return T_SUCCESS;
@@ -37,9 +38,7 @@ T_CODE tf_sqlite3_init(char *filename) {
     return T_SUCCESS;
 }
 
-T_CODE tf_sqlite3_migrations(char *migrations_dir) {
-    return m_migrations(tgc->sqlite3, migrations_dir);
-}
+T_CODE tf_sqlite3_migrations() { return m_migrations(tgc->sqlite3); }
 
 /// Initiates Torinify Global Context (`tgc`)
 T_CODE tf_init() {
@@ -72,6 +71,11 @@ void tf_cleanup() {
         pb_free(tgc->playback);
 
     free(tgc);
+}
+
+T_CODE tf_scan_sources() {
+    // M_scan(tgc->sqlite3);
+    return T_SUCCESS;
 }
 
 T_CODE tf_set_src(char *filename) {

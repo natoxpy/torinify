@@ -1,5 +1,5 @@
-#include "utils/generic_vec.h"
 #include <db/exec.h>
+#include <db/helpers.h>
 #include <db/sql.h>
 #include <db/tables.h>
 #include <errors/errors.h>
@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <storage/album.h>
 #include <storage/music.h>
+#include <utils/generic_vec.h>
 
 Music *s_music_alloc() {
     Music *music = malloc(sizeof(Music));
@@ -65,7 +66,7 @@ T_CODE s_music_get(sqlite3 *db, Music **music_out, MusicQuery query) {
 
     music_row->fullpath = NULL;
     music_row->title = NULL;
-    DB_music_row_free(music_row);
+    dbt_music_row_free(music_row);
 
     *music_out = music;
 
@@ -99,7 +100,7 @@ T_CODE s_music_get_all(sqlite3 *db, Vec **out_musics) {
 
     *out_musics = musics;
 end:
-    DB_vec_music_row_free(music_rows);
+    dbt_music_vec_rows_free(music_rows);
     return T_SUCCESS;
 }
 

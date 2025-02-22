@@ -1,0 +1,7 @@
+// #include <media/scan.h>
+//
+// int main() {
+//     start_scan();
+//
+//     return 0;
+// }

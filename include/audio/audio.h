@@ -34,7 +34,7 @@ struct AAudioContextBuffer {
 AAudioVector *a_audio_vector_alloc(size_t capacity);
 void a_audio_vector_free(AAudioVector *au_vec);
 
-/// @todo: implement
+/// @todo IMPLEMENT
 /// return less than zero indicate errors
 int a_audio_vector_push(AAudioVector *au_vec, const uint8_t *buffer,
                         size_t size);

@@ -1,5 +1,6 @@
 #include <errors/errors.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <utils/generic_vec.h>
@@ -79,6 +80,10 @@ void *vec_get(Vec *vec, uint32_t index) {
     return vec->data + index * vec->element_size;
 };
 
+void *vec_get_ref(Vec *vec, uint32_t index) {
+    return *(void **)vec_get(vec, index);
+};
+
 void vec_set(Vec *vec, void *data, int index) {
     memcpy(vec->data + index * vec->element_size, data, vec->element_size);
 }
@@ -104,6 +109,20 @@ void vec_join(Vec *vec, Vec *vec2) {
     vec->length += vec2->length;
 }
 
+void vec_copy(Vec *vec, Vec **vec2) {
+    *vec2 = vec_init_with_capacity(vec->element_size, vec->length);
+
+    memcpy(vec->data, (*vec2)->data, vec->element_size * vec->length);
+}
+
+void *vec_pop(Vec *vec) {
+    void *data = vec_get(vec, vec->length - 1);
+    vec->length -= 1;
+    return data;
+}
+
+void *vec_pop_ref(Vec *vec) { return *(void **)vec_pop(vec); }
+
 void vec_n_split(Vec *vec, Vec **vecs, int n) {
     int capacity = vec->length / n;
     int offset = 0;
@@ -123,4 +142,18 @@ void vec_n_split(Vec *vec, Vec **vecs, int n) {
 
         vecs[i] = dest_vec;
     }
+}
+
+void vec_n_split_vec(Vec *vec, Vec **vecs, int n) {
+    Vec *out = vec_init_with_capacity(vec->element_size, n);
+
+    Vec *svecs[n];
+    vec_n_split(vec, svecs, n);
+
+    for (int i = 0; i < n; i++) {
+        Vec *y = svecs[i];
+        vec_push(out, &y);
+    }
+
+    *vecs = out;
 }
