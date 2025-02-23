@@ -1,9 +1,9 @@
 #ifndef _MEDIA_SCAN_H
 #define _MEDIA_SCAN_H
 
-#include <pthread.h>
 #include <sqlite3.h>
 #include <stdint.h>
+#include <threads.h>
 #include <utils/generic_vec.h>
 
 #define FILE_STATE_FOUND 0
@@ -27,17 +27,17 @@ typedef struct {
 
 typedef struct {
     Vec *data;
-    pthread_mutex_t *mutex;
+    mtx_t *mutex;
     uint32_t working_index;
     uint32_t *processed;
 } ThreadContext;
 
 typedef struct {
-    pthread_mutex_t mutex;
+    mtx_t mutex;
     Vec *data;
     Vec *threads;
     Vec *threads_ctx;
-    pthread_t joins_thread;
+    thrd_t joins_thread;
     int finalized;
     uint32_t processed;
 } ScanContext;

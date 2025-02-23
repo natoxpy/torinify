@@ -1,7 +1,19 @@
-// #include <media/scan.h>
-//
-// int main() {
-//     start_scan();
-//
-//     return 0;
-// }
+#include <crossplatform/directories.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+int main() {
+    Directory *dir = directory_open("/home/toxpy/");
+    DirectoryEntry *entry;
+
+    while ((entry = directory_read(dir)) != NULL) {
+        if (entry->type == ENTRY_TYPE_DIRECTORY) {
+            printf("Dir %s\n", entry->name);
+        } else {
+            printf("File %s\n", entry->name);
+        }
+    }
+
+    directory_close(dir);
+    return 0;
+}

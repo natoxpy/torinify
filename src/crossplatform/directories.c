@@ -1,6 +1,8 @@
 #include <crossplatform/directories.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#ifdef _WIN32
 #include <windows.h>
 
 Directory *directory_open(char *path) {
@@ -65,3 +67,51 @@ void directory_close(Directory *dir) {
     free(dir->_file);
     free(dir);
 }
+#elif __unix__
+#include <dirent.h>
+#include <string.h>
+
+Directory *directory_open(char *path) {
+    Directory *directory = malloc(sizeof(Directory));
+
+    if (directory == NULL)
+        return NULL;
+
+    DIR *dir = opendir(path);
+    directory->_raw = dir;
+    directory->_file = malloc(sizeof(DirectoryEntry));
+
+    if (directory->_file == NULL)
+        return NULL;
+
+    return directory;
+}
+
+DirectoryEntry *directory_read(Directory *directory) {
+    DIR *dir = directory->_raw;
+
+    struct dirent *entry;
+
+    if ((entry = readdir(dir)) == NULL)
+        return NULL;
+
+    memcpy(directory->_file->name, entry->d_name, 256);
+
+    if (entry->d_type == DT_DIR)
+        directory->_file->type = ENTRY_TYPE_DIRECTORY;
+    else
+        directory->_file->type = ENTRY_TYPE_FILE;
+
+    return directory->_file;
+}
+
+void directory_close(Directory *dir) {
+    if (dir == NULL)
+        return;
+
+    closedir(dir->_raw);
+    free(dir->_file);
+    free(dir);
+}
+
+#endif

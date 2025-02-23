@@ -383,6 +383,12 @@ void app_cleanup() {
 }
 
 int main() {
+#ifdef _WIN32
+    freopen("null", "w", stderr);
+#elif __unix__
+    freopen("/dev/null", "w", stderr);
+#endif
+
     setup();
     atexit(app_cleanup);
 
@@ -597,7 +603,7 @@ int media_scan_media_subpage(AppContext *app_ctx) {
 
     clean_screen();
 
-    int threads = 15;
+    int threads = 1;
     ScanContext *scan_ctx = start_scan(tgc->sqlite3, sources_for_scan, threads);
 
     int offset = 0;
