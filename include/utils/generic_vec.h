@@ -14,7 +14,7 @@
  * @class Vec
  */
 typedef struct {
-    uint8_t  *data;
+    uint8_t *data;
     uint32_t element_size;
     uint32_t capacity;
     uint32_t length;
@@ -70,11 +70,6 @@ void *vec_pop(Vec *vec);
  * @memberof Vec
  */
 void *vec_pop_ref(Vec *vec);
-
-/**
- * @memberof Vec
- */
-void vec_n_split(Vec *vec, Vec **vecs, int n);
 
 /**
  * @memberof Vec

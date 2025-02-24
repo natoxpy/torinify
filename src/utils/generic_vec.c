@@ -123,7 +123,9 @@ void *vec_pop(Vec *vec) {
 
 void *vec_pop_ref(Vec *vec) { return *(void **)vec_pop(vec); }
 
-void vec_n_split(Vec *vec, Vec **vecs, int n) {
+void vec_n_split_vec(Vec *vec, Vec **vecs, int n) {
+    Vec *out = vec_init_with_capacity(vec->element_size, n);
+
     int capacity = vec->length / n;
     int offset = 0;
 
@@ -140,20 +142,10 @@ void vec_n_split(Vec *vec, Vec **vecs, int n) {
         dest_vec->length = capacity;
         offset += capacity;
 
-        vecs[i] = dest_vec;
-    }
-}
-
-void vec_n_split_vec(Vec *vec, Vec **vecs, int n) {
-    Vec *out = vec_init_with_capacity(vec->element_size, n);
-
-    Vec **svecs = malloc(sizeof(Vec *) * n);
-    vec_n_split(vec, svecs, n);
-
-    for (int i = 0; i < n; i++) {
-        Vec *y = svecs[i];
-        vec_push(out, &y);
+        vec_push(out, &dest_vec);
     }
 
     *vecs = out;
+
+    // vec_free((Vec *)svecs);
 }
