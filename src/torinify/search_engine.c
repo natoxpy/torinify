@@ -1,5 +1,4 @@
 #include "utils/generic_vec.h"
-#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <storage/music.h>
@@ -189,43 +188,43 @@ void s_process_search_multi(Vec *search_ctx, char *query, Vec **out_results,
     Vec *all_results =
         vec_init_with_capacity(sizeof(SearchResult), search_ctx->length);
 
-    Vec *all_ctx[threads];
-    vec_n_split(search_ctx, all_ctx, threads);
+    // Vec *all_ctx[threads];
+    // vec_n_split(search_ctx, all_ctx, threads);
 
-    pthread_t threads_id[threads];
-    ThreadProcessArg *params[threads];
-    Vec *results[threads];
+    // pthread_t threads_id[threads];
+    // ThreadProcessArg *params[threads];
+    // Vec *results[threads];
 
-    for (int i = 0; i < threads; i++) {
-        ThreadProcessArg *param = malloc(sizeof(ThreadProcessArg));
+    // for (int i = 0; i < threads; i++) {
+    //     ThreadProcessArg *param = malloc(sizeof(ThreadProcessArg));
 
-        pthread_t thread_id;
+    //     pthread_t thread_id;
 
-        param->search_ctxs = all_ctx[i];
-        param->query = query;
-        param->threshold = threshold;
+    //     param->search_ctxs = all_ctx[i];
+    //     param->query = query;
+    //     param->threshold = threshold;
 
-        pthread_create(&thread_id, NULL, thread_compute_search_process,
-                       (void *)param);
+    //     pthread_create(&thread_id, NULL, thread_compute_search_process,
+    //                    (void *)param);
 
-        threads_id[i] = thread_id;
-        params[i] = param;
-    }
+    //     threads_id[i] = thread_id;
+    //     params[i] = param;
+    // }
 
-    for (int i = 0; i < threads; i++) {
-        Vec *result;
-        pthread_join(threads_id[i], (void **)&result);
+    // for (int i = 0; i < threads; i++) {
+    //     Vec *result;
+    //     pthread_join(threads_id[i], (void **)&result);
 
-        results[i] = result;
-        free(params[i]);
-    }
+    //     results[i] = result;
+    //     free(params[i]);
+    // }
 
-    for (int i = 0; i < threads; i++) {
-        Vec *result = results[i];
+    // for (int i = 0; i < threads; i++) {
+    //     Vec *result = results[i];
 
-        vec_join(all_results, result);
-        vec_free(result);
-    }
+    //     vec_join(all_results, result);
+    //     vec_free(result);
+    // }
 
     sort_result_vec(all_results);
 
@@ -233,7 +232,7 @@ void s_process_search_multi(Vec *search_ctx, char *query, Vec **out_results,
 
 cleanup:
     for (int i = 0; i < threads; i++) {
-        Vec *ctx_vec = all_ctx[i];
-        vec_free(ctx_vec);
+        // Vec *ctx_vec = all_ctx[i];
+        // vec_free(ctx_vec);
     }
 }

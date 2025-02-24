@@ -14,7 +14,7 @@
  * @class Vec
  */
 typedef struct {
-    void *data;
+    uint8_t  *data;
     uint32_t element_size;
     uint32_t capacity;
     uint32_t length;

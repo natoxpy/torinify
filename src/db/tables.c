@@ -53,7 +53,7 @@ void dbt_music_vec_rows_free(Vec *vec) {
     MusicRow *row;
 
     for (int i = 0; i < vec->length; i++) {
-        row = vec->data + (i * vec->element_size);
+        row = (MusicRow *)(vec->data + (i * vec->element_size));
         free(row->title);
         free(row->fullpath);
     }

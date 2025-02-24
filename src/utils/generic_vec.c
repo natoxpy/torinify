@@ -147,7 +147,7 @@ void vec_n_split(Vec *vec, Vec **vecs, int n) {
 void vec_n_split_vec(Vec *vec, Vec **vecs, int n) {
     Vec *out = vec_init_with_capacity(vec->element_size, n);
 
-    Vec *svecs[n];
+    Vec **svecs = malloc(sizeof(Vec *) * n);
     vec_n_split(vec, svecs, n);
 
     for (int i = 0; i < n; i++) {

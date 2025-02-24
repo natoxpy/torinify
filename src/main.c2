@@ -3,7 +3,7 @@
 #include <stdlib.h>
 
 int main() {
-    Directory *dir = directory_open("/home/toxpy/");
+    Directory *dir = directory_open("C:/");
     DirectoryEntry *entry;
 
     while ((entry = directory_read(dir)) != NULL) {

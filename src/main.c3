@@ -11,14 +11,13 @@
 #ifndef _ENGINE_OS_SPECIFIC_MAIN_C
 #define _ENGINE_OS_SPECIFIC_MAIN_C
 
-void print_with_background_white(char *text) {
-    printf("\033[47;30m%s\033[0m", text);
-}
+void hide_cursor() { printf("\033[?25l"); }
+void show_cursor() { printf("\033[?25h"); }
 
-#define ARROW_LEFT 1
-#define ARROW_RIGHT 2
-#define ARROW_UP 3
-#define ARROW_DOWN 4
+#define ARROW_LEFT 0
+#define ARROW_RIGHT 1
+#define ARROW_UP 2
+#define ARROW_DOWN 3
 
 #define KEY_STANDARD 0
 #define KEY_SPECIAL 1
@@ -63,9 +62,6 @@ int inline static is_esc(Key key) {
 #include <sys/stat.h>
 #include <termios.h>
 #include <unistd.h>
-
-void oss_hide_cursor() { printf("\033[?25l"); }
-void oss_show_cursor() { printf("\033[?25h"); }
 
 void oss_print_with_background_white(char *text) {
     printf("\033[47;30m%s\033[0m", text);
@@ -156,99 +152,6 @@ int oss_path_exists(char *path) {
 #endif
 #ifdef _WIN32
 
-#include <windows.h>
-
-void oss_print_with_background_white(char *text) {
-    printf("\033[47;30m%s\033[0m", text);
-}
-
-int oss_path_exists(char *path) {
-    DWORD dwAttrib = GetFileAttributes(path);
-
-    return (dwAttrib != INVALID_FILE_ATTRIBUTES &&
-            (dwAttrib & FILE_ATTRIBUTE_DIRECTORY));
-}
-
-void oss_hide_cursor() {
-    HANDLE consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
-    CONSOLE_CURSOR_INFO info = {0};
-    info.bVisible = FALSE;
-    SetConsoleCursorInfo(consoleHandle, &info);
-}
-
-void oss_show_cursor() {
-    HANDLE consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
-    CONSOLE_CURSOR_INFO info = {0};
-    info.bVisible = TRUE;
-    SetConsoleCursorInfo(consoleHandle, &info);
-}
-
-void oss_get_terminal_size(int *width, int *height) {
-    CONSOLE_SCREEN_BUFFER_INFO csbi;
-    int columns, rows;
-
-    GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
-    columns = csbi.srWindow.Right - csbi.srWindow.Left + 1;
-    rows = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
-
-    if (width != NULL)
-        *width = columns;
-    if (height != NULL)
-        *height = rows;
-}
-
-char oss_noblock_readch() {
-    HANDLE hConsole = GetStdHandle(STD_INPUT_HANDLE);
-    DWORD dwMode;
-    GetConsoleMode(hConsole, &dwMode);
-    SetConsoleMode(hConsole,
-                   dwMode & ~ENABLE_LINE_INPUT &
-                       ~ENABLE_ECHO_INPUT); // Disable line input and echo
-
-    INPUT_RECORD ir;
-    DWORD dwNumRead;
-    char ch = 0;
-
-    if (PeekConsoleInput(hConsole, &ir, 1, &dwNumRead) && dwNumRead > 0) {
-        if (ir.EventType == KEY_EVENT && ir.Event.KeyEvent.bKeyDown) {
-            ch = ir.Event.KeyEvent.uChar.AsciiChar;
-
-            // Check for arrow keys by looking at wVirtualKeyCode
-            switch (ir.Event.KeyEvent.wVirtualKeyCode) {
-            case VK_UP:
-                ch = ARROW_UP;
-                break;
-            case VK_DOWN:
-                ch = ARROW_DOWN;
-                break;
-            case VK_LEFT:
-                ch = ARROW_LEFT;
-                break;
-            case VK_RIGHT:
-                ch = ARROW_RIGHT;
-                break;
-            }
-        }
-
-        // Remove the input from the buffer
-        FlushConsoleInputBuffer(hConsole);
-    }
-
-    return ch;
-}
-
-char oss_readch() {
-    char ch = 0;
-    while ((ch = oss_noblock_readch()) == 0) {
-    };
-
-    return ch;
-}
-
-void oss_setup() {}
-void inline static oss_clean_screen() { printf("\033[H\033[J"); }
-void oss_cleanup() {}
-
 #endif
 
 #endif
@@ -256,9 +159,6 @@ void oss_cleanup() {}
 #ifndef _ENGINE_MAIN_C
 #define _ENGINE_MAIN_C
 #include <stdint.h>
-
-void hide_cursor() { oss_hide_cursor(); }
-void show_cursor() { oss_show_cursor(); }
 
 typedef struct {
     char *str;
@@ -274,7 +174,7 @@ Key readkey() {
     if (is_arrow(c)) {
         key.keytype = KEY_ARROW;
         key.ch.arrow = c;
-    } else if (c == '\r' || c == '\n') {
+    } else if (c == '\n') {
         key.keytype = KEY_SPECIAL;
         key.ch.special = "Enter";
     } else if (c == 27) {
@@ -289,7 +189,7 @@ Key readkey() {
 }
 
 void component_render_inputbox(Text *text) {
-    printf("'%s\033[48;5;15m \033[0m'\n", text->str);
+    printf("%s\033[48;5;15m \033[0m\n", text->str);
 }
 
 void component_render_sources() {
@@ -357,7 +257,7 @@ void collect_text(Text *text, Key key) {
         return;
     }
 
-    if (key.ch.standard == 127 || key.ch.standard == '\b') {
+    if (key.ch.standard == 127) {
         if (text->len > 0)
             text->len--;
 
@@ -483,12 +383,6 @@ void app_cleanup() {
 }
 
 int main() {
-#ifdef _WIN32
-    int _ = freopen("null", "w", stderr);
-#elif __unix__
-    freopen("/dev/null", "w", stderr);
-#endif
-
     setup();
     atexit(app_cleanup);
 
@@ -703,7 +597,7 @@ int media_scan_media_subpage(AppContext *app_ctx) {
 
     clean_screen();
 
-    int threads = 1;
+    int threads = 15;
     ScanContext *scan_ctx = start_scan(tgc->sqlite3, sources_for_scan, threads);
 
     int offset = 0;
@@ -739,9 +633,6 @@ int media_scan_media_subpage(AppContext *app_ctx) {
 
         printf("]\n");
         unlock_scan(scan_ctx);
-#ifdef _WIN32
-        Sleep(1);
-#endif
     }
 
     finalize_scan(scan_ctx);

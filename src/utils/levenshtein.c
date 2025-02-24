@@ -22,7 +22,14 @@ int levenshtein_distance(const char *s, size_t m, const char *t, size_t n) {
     if (n == 0)
         return m;
 
+#ifdef _WIN32
+    int **d = malloc((m + 1) * sizeof(int *));
+    for (size_t i = 0; i <= m; i++) {
+        d[i] = malloc((n + 1) * sizeof(int));
+    }
+#elif __unix__
     int d[m + 1][n + 1];
+#endif
 
     for (size_t i = 0; i <= m; i++)
         d[i][0] = i;
@@ -38,17 +45,36 @@ int levenshtein_distance(const char *s, size_t m, const char *t, size_t n) {
         }
     }
 
-    return d[m][n];
+    int value = d[m][n];
+#ifdef _WIN32
+    // Free the allocated memory
+    for (size_t i = 0; i <= m; i++)
+        free(d[i]);
+    free(d);
+#endif
+
+    return value;
 }
 
 double similarity_score(const char *s, const char *t) {
     size_t m = strlen(s), n = strlen(t);
 
+#ifdef _WIN32
+    char *s_lower = malloc((m + 1) * sizeof(int));
+    char *t_lower = malloc((n + 1) * sizeof(int));
+#elif __unix__
     char s_lower[m + 1], t_lower[n + 1];
+#endif
+
     to_lowercase(s_lower, s);
     to_lowercase(t_lower, t);
 
     int dist = levenshtein_distance(s_lower, m, t_lower, n);
+
+#ifdef _WIN32
+    free(s_lower);
+    free(t_lower);
+#endif
 
     return 1.0 - ((double)dist / (double)(m > n ? m : n));
 }

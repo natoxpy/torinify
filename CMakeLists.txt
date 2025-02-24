@@ -4,18 +4,18 @@ project(torinify)
 set(CMAKE_POSITION_INDEPENDENT_CODE OFF)
 
 # Enable AddressSanitizer and debugging symbols
-if (WIN32)
+if(WIN32)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
 endif()
 
-if (UNIX)
+if(UNIX)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -fsanitize=address")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -fsanitize=address")
 endif()
 
 file(GLOB lib_sources
-     "src/*/*.c"
+    "src/*/*.c"
 )
 
 list(REMOVE_ITEM lib_sources "src/main.c")
@@ -29,7 +29,7 @@ file(GLOB SQL_FILES ${SQL_DIR}/*.sql)
 set(SQL_OBJECT_FILES "")
 
 foreach(SQL_FILE ${SQL_FILES})
-    get_filename_component(SQL_NAME ${SQL_FILE} NAME_WE)  # Extract file name without extension
+    get_filename_component(SQL_NAME ${SQL_FILE} NAME_WE) # Extract file name without extension
 
     # Define the output C file for the SQL data
     set(OUTPUT_C_FILE ${BUILD_SQL_DIR}/${SQL_NAME}.c)
@@ -52,15 +52,24 @@ add_library(${PROJECT_NAME} STATIC ${lib_sources} ${SQL_OBJECT_FILES})
 
 target_include_directories(${PROJECT_NAME} PUBLIC include)
 
-if (WIN32)
+if(WIN32)
     set(SQLite3_INCLUDE_DIR $ENV{SQLite3_INCLUDE_DIR})
     set(SQLite3_LIBRARY $ENV{SQLite3_LIBRARY})
-    set(TagLib_DIR $ENV{TagLib_DIR})
+    set(TagLib_INCLUDE $ENV{TagLib_INCLUDE})
+    set(TagLib_LIBRARY $ENV{TagLib_LIBRARY})
+    include_directories("${TagLib_INCLUDE}" "${SQLite3_INCLUDE_DIR}")
+    link_directories("${TagLib_LIBRARY}" "${SQLite3_LIBRARY}")
 endif()
 
-# Find and link SQLite3 correctly
-find_package(SQLite3 REQUIRED)
-target_link_libraries(${PROJECT_NAME} PUBLIC SQLite::SQLite3)
+if (UNIX)
+    find_package(TagLib REQUIRED)
+    target_link_libraries(${PROJECT_NAME} PUBLIC tag_c)
+
+    # Find and link SQLite3 correctly
+    find_package(SQLite3 REQUIRED)
+    target_link_libraries(${PROJECT_NAME} PUBLIC SQLite::SQLite3)
+endif()
+
 
 # Find and link FFmpeg libraries
 
@@ -74,11 +83,10 @@ target_link_libraries(${PROJECT_NAME}
     PUBLIC
     avcodec avformat avutil swresample swscale)
 
-find_package(TagLib REQUIRED)
-target_link_libraries(${PROJECT_NAME} PUBLIC tag_c)
-
 # Link against math library
-target_link_libraries(${PROJECT_NAME} PUBLIC m)
+if (UNIX) 
+    target_link_libraries(${PROJECT_NAME} PUBLIC m)
+endif()
 
 # Define which headers to expose
 set(EXPOSED_HEADERS
@@ -97,7 +105,10 @@ add_executable(main "src/main.c")
 # Link the executable to the library
 target_include_directories(main PUBLIC include)
 target_link_libraries(main PUBLIC ${PROJECT_NAME})
-target_link_libraries(main PRIVATE
-    m        # math library
-    z        # zlib
-)
+
+if (UNIX)
+    target_link_libraries(main PRIVATE
+        m        # math library
+        z        # zlib
+    )
+endif()

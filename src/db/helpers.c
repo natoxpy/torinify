@@ -7,9 +7,14 @@
 #include <string.h>
 #include <utils/generic_vec.h>
 
-/// @todo
-/// this only for on UNIX, ensure it works on windows as well
+#ifdef _WIN32
+#include <windows.h>
+void dbh_realpath(char *path, char *resolved) {
+    _fullpath(resolved, path, 2048);
+};
+#elif __unix__
 void dbh_realpath(char *path, char *resolved) { realpath(path, resolved); }
+#endif
 
 void dbh_join_sql(char *buffer, size_t buffer_size, const char *sql_root,
                   const char *sql_arg) {
