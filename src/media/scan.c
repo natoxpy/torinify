@@ -9,12 +9,25 @@
 #include <utils/generic_vec.h>
 
 int supported_music_file(char *fullpath) {
+#ifdef _WIN32
+    wchar_t wfullpath[1024];
+    mbstowcs(wfullpath, fullpath, 1024); // Convert the string
+    MultiByteToWideChar(CP_UTF8, 0, fullpath, -1, wfullpath, 1024);
+
+    FILE *file = _wfopen(wfullpath, L"rb");
+
+    if (!file) {
+        error_log("Could not open file path \"%s\"", fullpath);
+        return 0;
+    }
+#elif __unix__
     FILE *file = fopen(fullpath, "rb");
 
     if (!file) {
         error_log("Could not open file path \"%s\"", fullpath);
         return 0;
     }
+#endif
 
     unsigned char buffer[4];
     size_t read_size = fread(buffer, 1, 4, file);
@@ -181,6 +194,9 @@ void recursive_readdir(Vec *sources, Vec **out) {
     for (int i = 0; i < sources->length; i++) {
         char *path = vec_get_ref(sources, i);
         Directory *dir = directory_open(path);
+        if (dir == NULL)
+            continue;
+
         DirectoryEntry *entry;
 
         Vec *dirs = vec_init(sizeof(Directory *));
@@ -271,8 +287,6 @@ void scan_file(char *fullpath, MusicContext *music_ctx) {
     music_ctx->name = strdup(taglib_tag_title(tag));
     music_ctx->artist = strdup(taglib_tag_artist(tag));
     music_ctx->album = strdup(taglib_tag_album(tag));
-
-    printf("%s\n", music_ctx->name);
 
     taglib_file_free(file);
     taglib_tag_free_strings();

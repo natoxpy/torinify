@@ -1,19 +1,20 @@
-#include <crossplatform/directories.h>
-#include <stdio.h>
-#include <stdlib.h>
+﻿#include <stdio.h>
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#include <windows.h>
+#endif
 
 int main() {
-    Directory *dir = directory_open("C:/");
-    DirectoryEntry *entry;
+#ifdef _WIN32
 
-    while ((entry = directory_read(dir)) != NULL) {
-        if (entry->type == ENTRY_TYPE_DIRECTORY) {
-            printf("Dir %s\n", entry->name);
-        } else {
-            printf("File %s\n", entry->name);
-        }
-    }
+    // Enable binary mode for stdout
+    _setmode(_fileno(stdout), _O_U8TEXT);
+#endif
 
-    directory_close(dir);
+    // UTF-8 encoded string
+    char str[] = "こんにちは";
+    printf("%s\n", str); // Print the UTF-8 string
+
     return 0;
 }

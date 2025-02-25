@@ -67,4 +67,6 @@ int lock_scan(ScanContext *scan_ctx);
  */
 void unlock_scan(ScanContext *scan_ctx);
 
+void recursive_readdir(Vec *sources, Vec **out);
+
 #endif

@@ -7,7 +7,7 @@
 typedef struct {
     void *_raw;
     int type;
-    char name[512];
+    char name[1012];
 } DirectoryEntry;
 
 typedef struct {

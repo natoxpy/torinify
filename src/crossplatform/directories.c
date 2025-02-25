@@ -1,8 +1,12 @@
-#include <crossplatform/directories.h>
+﻿#include <crossplatform/directories.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#include <locale.h>
+#include <wchar.h>
 #include <windows.h>
 
 Directory *directory_open(char *path) {
@@ -15,18 +19,29 @@ Directory *directory_open(char *path) {
     if (directory->_file == NULL)
         return NULL;
 
-    WIN32_FIND_DATA file;
+    WIN32_FIND_DATAW file;
     HANDLE find = NULL;
+    wchar_t wpath[2048];
+    int result = MultiByteToWideChar(CP_UTF8, 0, path, -1, wpath, 2048);
 
-    char pathproper[2048];
-    sprintf(pathproper, "%s\\*", path);
+    // Check for conversion errors
+    if (result == 0) {
+        DWORD error = GetLastError();
+        wprintf("MultiByteToWideChar failed with error code %lu\n", error);
+    }
 
-    if ((find = FindFirstFile(pathproper, &file)) == INVALID_HANDLE_VALUE)
+    wcscat(wpath, L"\\*");
+
+    // wprintf(L"path looking into: %ls\n", wpath);
+
+    if ((find = FindFirstFileW(wpath, &file)) == INVALID_HANDLE_VALUE)
         return NULL;
 
     directory->_raw = find;
 
-    memcpy(directory->_file->name, file.cFileName, 260);
+    // Convert the wide-character file name to UTF-8
+    WideCharToMultiByte(CP_UTF8, 0, file.cFileName, -1, directory->_file->name,
+                        sizeof(directory->_file->name), NULL, NULL);
 
     if (file.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
         directory->_file->type = ENTRY_TYPE_DIRECTORY;
@@ -44,12 +59,13 @@ DirectoryEntry *directory_read(Directory *dir) {
         return dir->_file;
     }
 
-    WIN32_FIND_DATA file;
-    int ret = FindNextFile(find, &file);
+    WIN32_FIND_DATAW file;
+    int ret = FindNextFileW(find, &file);
     if (ret == 0)
         return NULL;
 
-    memcpy(dir->_file->name, file.cFileName, 260);
+    WideCharToMultiByte(CP_UTF8, 0, file.cFileName, -1, dir->_file->name,
+                        sizeof(dir->_file->name), NULL, NULL);
 
     if (file.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
         dir->_file->type = ENTRY_TYPE_DIRECTORY;
