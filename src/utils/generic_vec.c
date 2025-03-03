@@ -22,7 +22,7 @@ Vec *vec_init_with_capacity(uint32_t element_size, int capacity) {
         return NULL;
     }
 
-    char *data = malloc(element_size * capacity);
+    uint8_t *data = malloc(element_size * capacity);
 
     if (data == NULL && capacity != 0) {
         error_log(
@@ -65,8 +65,8 @@ T_CODE vec_push(Vec *vec, void *data) {
         vec->capacity = capacity;
     }
 
-    memcpy(((uint8_t *)vec->data) + (vec->length * vec->element_size),
-           (const void *)data, vec->element_size);
+    memcpy(vec->data + (vec->length * vec->element_size), (const void *)data,
+           vec->element_size);
 
     vec->length++;
 
@@ -146,6 +146,4 @@ void vec_n_split_vec(Vec *vec, Vec **vecs, int n) {
     }
 
     *vecs = out;
-
-    // vec_free((Vec *)svecs);
 }

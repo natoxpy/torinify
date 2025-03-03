@@ -1,8 +1,10 @@
-#include "db/exec.h"
-#include "db/helpers.h"
-#include "db/tables.h"
 #include "media/scan.h"
 #include "utils/generic_vec.h"
+#include <db/exec.h>
+#include <db/exec/music_table.h>
+#include <db/helpers.h>
+#include <db/sql.h>
+#include <db/tables.h>
 #include <stdio.h>
 #include <string.h>
 #include <torinify/core.h>
@@ -40,6 +42,10 @@ int inline static is_arrow(char c) {
 
 int inline static is_enter(Key key) {
     return key.keytype == KEY_SPECIAL && strcmp(key.ch.special, "Enter") == 0;
+}
+
+int inline static no_input(Key key) {
+    return key.keytype == KEY_STANDARD && key.ch.standard == 0;
 }
 
 /// Checks if input is standard and `y`
@@ -109,6 +115,20 @@ char oss_noblock_readch() { // Set STDIN to non-blocking mode
 
     // Restore original blocking mode
     fcntl(STDIN_FILENO, F_SETFL, flags);
+
+    if (c == '\033') {
+        oss_noblock_readch();
+        switch (oss_noblock_readch()) {
+        case 'A':
+            return ARROW_UP;
+        case 'B':
+            return ARROW_DOWN;
+        case 'C':
+            return ARROW_RIGHT;
+        case 'D':
+            return ARROW_LEFT;
+        }
+    }
 
     return c;
 }
@@ -266,6 +286,31 @@ typedef struct {
     uint32_t cap;
 } Text;
 
+/// Non-blocking input
+Key readkey_nb() {
+    Key key = {.keytype = KEY_STANDARD, {.standard = 0}};
+    char c = oss_noblock_readch();
+
+    if (c == 0)
+        return key;
+
+    if (is_arrow(c)) {
+        key.keytype = KEY_ARROW;
+        key.ch.arrow = c;
+    } else if (c == '\r' || c == '\n') {
+        key.keytype = KEY_SPECIAL;
+        key.ch.special = "Enter";
+    } else if (c == 27) {
+        key.keytype = KEY_SPECIAL;
+        key.ch.special = "Esc";
+    } else {
+        key.keytype = KEY_STANDARD;
+        key.ch.standard = c;
+    }
+
+    return key;
+}
+
 /// Waits for input
 Key readkey() {
     Key key = {.keytype = KEY_SPECIAL, {.standard = 0}};
@@ -341,13 +386,19 @@ int component_render_sources_with_selection(int selected) {
     return rendered;
 }
 
-void setup() {
+T_CODE setup() {
+    int ret = T_SUCCESS;
     hide_cursor();
     oss_setup();
-    tf_init();
-    tf_init_db("../../sqlite.db");
+    ret = tf_init();
+    if (ret != T_SUCCESS)
+        return ret;
 
-    return;
+    ret = tf_init_db("../../sqlite.db");
+    if (ret != T_SUCCESS)
+        return ret;
+
+    return ret;
 }
 
 void inline static clean_screen() { oss_clean_screen(); }
@@ -398,6 +449,9 @@ typedef struct {
 } AppContext;
 
 AppContext init_app() {
+    Queue *core_q = pb_q_alloc();
+    pb_add_q(tgc->playback, core_q);
+
     AppContext app_ctx = {
         .page = 1,
         .selected = 0,
@@ -410,7 +464,6 @@ AppContext init_app() {
                         .cap = 1012,
                         .str = malloc(sizeof(char *) * 1012)},
         .search_results = NULL,
-
     };
 
     app_ctx.search_query.str[0] = '\0';
@@ -474,23 +527,35 @@ void text_copy(Text *text, char *str) {
 int home_page();
 int search_page(AppContext *app);
 int media_page(AppContext *app);
+int playback_page(AppContext *app);
 #endif
+
+Queue *get_core_queue() { return vec_get(tgc->playback->queues, 0); }
 
 void app_cleanup() {
     cleanup();
     clean_screen();
+#ifdef _WIN32
+#elif __unix__
+    freopen("/dev/tty", "w", stderr);
+#endif
     return;
 }
 
 int main() {
+
 #ifdef _WIN32
     int _ = freopen("null", "w", stderr);
 #elif __unix__
     freopen("/dev/null", "w", stderr);
 #endif
 
-    setup();
     atexit(app_cleanup);
+    if (setup() != T_SUCCESS) {
+        error_log("unable to start due to setup fail\n");
+        error_print_all();
+        return -1;
+    }
 
     AppContext app_ctx = init_app();
 
@@ -503,7 +568,7 @@ int main() {
 
         if (app_ctx.logmsg.len != 0) {
             printf("%s - ", app_ctx.logmsg.str);
-            text_empty(&app_ctx.logmsg);
+            // text_empty(&app_ctx.logmsg);
         }
 
         switch (app_ctx.page) {
@@ -514,13 +579,16 @@ int main() {
             break;
 
         case 2:
-            printf("Search: ");
             redirect_to = search_page(&app_ctx);
             break;
 
         case 3:
             printf("Media");
             redirect_to = media_page(&app_ctx);
+            break;
+
+        case 4:
+            redirect_to = playback_page(&app_ctx);
             break;
 
         default:
@@ -530,6 +598,8 @@ int main() {
 
         if (redirect_to != 0 && redirect_to != app_ctx.page) {
             text_empty(&app_ctx.general_use);
+            text_empty(&app_ctx.logmsg);
+            text_empty(&app_ctx.search_query);
             app_ctx.selected = 0;
             app_ctx.page = redirect_to;
         }
@@ -553,6 +623,7 @@ int home_page() {
     printf("[Esc] Exit\n");
     printf("[1] Search\n");
     printf("[2] Scan\n");
+    printf("[3] Playback\n");
 
     Key key = readkey();
     if (is_esc(key))
@@ -564,6 +635,8 @@ int home_page() {
             return 2;
         case '2':
             return 3;
+        case '3':
+            return 4;
         default:
             return -2;
         }
@@ -575,12 +648,17 @@ int home_page() {
 /// === SEARCH PAGE ===
 
 int search_page(AppContext *app) {
+
+    if (app->search_results != NULL && app->search_results->length == 0)
+        printf("\n[Esc] Return\n");
+    else
+        printf("\n[Esc] Return | [Enter] Add to queue\n");
+
     component_render_inputbox(&app->search_query);
-    printf("[Esc] Home\n");
 
     int max = 10;
     oss_get_terminal_size(NULL, &max);
-    max = max - 3;
+    max = max - 4;
 
     if (app->search_results) {
 
@@ -590,13 +668,42 @@ int search_page(AppContext *app) {
 
             SearchResult *result = vec_get(app->search_results, i);
 
-            printf("- %s\n", result->title);
+            if (i == app->selected) {
+                printf(" > %s\n", result->title);
+            } else {
+                printf(" - %s\n", result->title);
+            }
         }
     }
+
+    app->max_selected = max - 1;
 
     Key key = readkey();
     if (is_esc(key))
         return 1;
+
+    if (key.keytype == KEY_ARROW) {
+        handle_arrow_key(key, app);
+        return 0;
+    }
+
+    if (app->selected < max && is_enter(key) && app->search_results != NULL &&
+        app->search_results->length != 0) {
+        SearchResult *result = vec_get(app->search_results, app->selected);
+
+        MusicRow *row;
+        DB_query_music_single(tgc->sqlite3, result->rowid, &row);
+
+        if (row) {
+            char txt[255];
+            sprintf(txt, "Added to playback '%s'", row->title);
+            text_copy(&app->logmsg, txt);
+        } else {
+            text_copy(&app->logmsg, "rown't");
+        }
+
+        dbt_music_row_free(row);
+    }
 
     collect_text(&app->search_query, key);
 
@@ -698,6 +805,11 @@ int media_scan_media_subpage(AppContext *app_ctx) {
     Vec *sources_for_scan = vec_init(sizeof(char *));
     DB_query_source_all(tgc->sqlite3, &sources);
 
+    if (sources->length == 0) {
+        text_copy(&app_ctx->logmsg, "No sources are avaiable at the moment");
+        return -1;
+    }
+
     MediaSourceRow *row = vec_get_ref(sources, app_ctx->selected);
     vec_push(sources_for_scan, &row->path);
 
@@ -759,8 +871,57 @@ int media_scan_media_subpage(AppContext *app_ctx) {
 int media_rescan_media_subpage(AppContext *app_ctx) {
     printf("\n[Esc] Return\n");
 
+    app_ctx->max_selected =
+        component_render_sources_with_selection(app_ctx->selected) - 1;
+
     Key key = readkey();
-    if (is_esc(key)) {
+    if (is_esc(key))
+        return -1;
+
+    if (key.keytype == KEY_ARROW) {
+        handle_arrow_key(key, app_ctx);
+        return 0;
+    }
+
+    return 0;
+}
+
+int media_delete_media_subpage(AppContext *app_ctx) {
+    printf("\n[Esc] Return | [Y/Enter] Delete \n");
+
+    app_ctx->max_selected =
+        component_render_sources_with_selection(app_ctx->selected) - 1;
+
+    Key key = readkey();
+    if (is_esc(key))
+        return -1;
+
+    if (key.keytype == KEY_ARROW) {
+        handle_arrow_key(key, app_ctx);
+        return 0;
+    }
+
+    if (key.keytype == KEY_SPECIAL && is_enter(key) ||
+        key.keytype == KEY_STANDARD && key.ch.standard == 'y') {
+
+        Vec *sources;
+        DB_query_source_all(tgc->sqlite3, &sources);
+
+        MediaSourceRow *row = vec_get_ref(sources, app_ctx->selected);
+
+        char text[255];
+
+        if (DB_delete_source(tgc->sqlite3, row->id) != TDB_SUCCESS) {
+            sprintf(text, "Failed to delete %s", row->path);
+            text_copy(&app_ctx->logmsg, text);
+        } else {
+            sprintf(text, "Deleted %s", row->path);
+            text_copy(&app_ctx->logmsg, text);
+        }
+
+        dbt_source_vec_rows_free(sources);
+
+        app_ctx->selected = 0;
         return -1;
     }
 
@@ -781,6 +942,9 @@ int media_page(AppContext *app_ctx) {
             break;
         case 3:
             newpage = media_rescan_media_subpage(app_ctx);
+            break;
+        case 4:
+            newpage = media_delete_media_subpage(app_ctx);
             break;
         }
 
@@ -815,7 +979,71 @@ int media_page(AppContext *app_ctx) {
     case 'R':
         app_ctx->subpage = 3;
         break;
+    case 'd':
+        app_ctx->subpage = 4;
+        break;
     }
+
+    return 0;
+}
+
+/// === PLAYBACK PAGE ===
+
+int playback_page(AppContext *app_ctx) {
+    usleep(10 * 1000);
+    clean_screen();
+
+    app_ctx->max_selected = 1;
+
+    printf("Playback - Playing - Iron Lotus - \n");
+    printf("[Esc] Return \n");
+    printf("[p] Play Song | [<Space>] Play/Pause | [l] toggle loop options \n");
+
+    printf("----------- \n");
+    printf(" Q - loop single \n");
+
+    Vec *sg = vec_init(sizeof(char *));
+    char *_a = "Iron Lotus";
+    char *_b = "Grown-Up's Paradise";
+    vec_push(sg, &_a);
+    vec_push(sg, &_b);
+
+    for (int i = 0; i < sg->length; i++) {
+        char *n = vec_get_ref(sg, i);
+        char cursor = '-';
+
+        if (app_ctx->selected == i)
+            cursor = '>';
+
+        printf(" %c %s\n", cursor, n);
+    }
+
+    // printf(" > 1. Iron Lotus (Playing)   \n");
+    // printf("   2. Grown-Up's Paradise \n");
+
+    vec_free(sg);
+
+    printf("----------- \n");
+    printf(" volume   :   10 [xxxxxxxxxx]   \n");
+    printf("----------- \n");
+    printf(" timeline : 0:20 [xxxx               ] 3:23    \n");
+    printf("----------- \n");
+
+    Key key = readkey_nb();
+    if (is_esc(key))
+        return 1;
+
+    if (no_input(key)) {
+        return 0;
+    }
+
+    if (key.keytype == KEY_ARROW) {
+        handle_arrow_key(key, app_ctx);
+        return 0;
+    }
+
+    if (key.keytype != KEY_STANDARD)
+        return 0;
 
     return 0;
 }

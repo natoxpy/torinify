@@ -1,6 +1,7 @@
 #ifndef _DB_HELPERS_H
 #define _DB_HELPERS_H
 
+#include "db/tables.h"
 #include <db/exec.h>
 #include <sqlite3.h>
 #include <stdlib.h>
@@ -29,17 +30,41 @@ typedef struct {
         char *str;
         int num;
     } value;
-} DBH_BindValue;
+} BindValue;
 
-Vec *dbh_bind_init();
+#define BIND_INT(x)                                                            \
+    (BindValue) {                                                              \
+        .type = DBH_BIND_VALUE_TYPE_NUMBER, .value = {.num = x }               \
+    }
 
-void dbh_bind_push_int(Vec *val, int num);
-void dbh_bind_push_str(Vec *val, char *text);
-void dbh_bind_push_null(Vec *val);
+#define BIND_STR(x)                                                            \
+    (BindValue) {                                                              \
+        .type = DBH_BIND_VALUE_TYPE_STRING, .value = {.str = x }               \
+    }
 
-TDB_CODE dbh_bind_vec(sqlite3 *db, sqlite3_stmt *stmt, Vec *vec);
+#define BIND_NULL(x)                                                           \
+    (BindValue) { .type = DBH_BIND_VALUE_TYPE_NULL }
+
+#define SIZEOF_BINDS(x) sizeof(x) / sizeof(BindValue)
+
+TDB_CODE dbh_bind_array(sqlite3 *db, sqlite3_stmt *stmt, BindValue *arr,
+                        int bind_length);
+
+// Vec *dbh_bind_init();
+//
+// void dbh_bind_push_int(Vec *val, int num);
+// void dbh_bind_push_str(Vec *val, char *text);
+// void dbh_bind_push_null(Vec *val);
+//
+// TDB_CODE dbh_bind_vec(sqlite3 *db, sqlite3_stmt *stmt, Vec *vec);
+
+// TDB_CODE dbh_sql_execute(sqlite3 *db, sqlite3_stmt *stmt, Vec *out_vec,
+//                          TDB_CODE (*collect)(sqlite3_stmt *, Vec *));
 
 TDB_CODE dbh_sql_execute(sqlite3 *db, sqlite3_stmt *stmt, Vec *out_vec,
-                         TDB_CODE (*collect)(sqlite3_stmt *, Vec *));
+                         void *(*collect)(sqlite3_stmt *));
+
+TDB_CODE dbh_sql_execute_single(sqlite3 *db, sqlite3_stmt *stmt, void **out,
+                                void *(*collect)(sqlite3_stmt *));
 
 #endif

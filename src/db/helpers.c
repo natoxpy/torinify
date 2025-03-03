@@ -1,7 +1,10 @@
+#include "db/tables.h"
 #include <db/exec.h>
 #include <db/helpers.h>
 #include <libavformat/avformat.h>
 #include <sqlite3.h>
+#include <stdatomic.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -109,61 +112,18 @@ TDB_CODE dbh_bind_int(sqlite3 *db, sqlite3_stmt *stmt, int n, int value) {
     return TDB_SUCCESS;
 }
 
-Vec *dbh_bind_init() {
-    Vec *vec = vec_init(sizeof(DBH_BindValue *));
+TDB_CODE dbh_bind_array(sqlite3 *db, sqlite3_stmt *stmt, BindValue *arr,
+                        int bind_length) {
+    int ret;
 
-    if (!vec)
-        return NULL;
-
-    return vec;
-}
-
-void dbh_bind_push_int(Vec *vec, int num) {
-    DBH_BindValue *bv = malloc(sizeof(DBH_BindValue));
-    if (!bv)
-        return;
-
-    bv->type = DBH_BIND_VALUE_TYPE_NUMBER;
-    bv->value.num = num;
-
-    vec_push(vec, &bv);
-}
-
-void dbh_bind_push_str(Vec *vec, char *text) {
-    DBH_BindValue *bv = malloc(sizeof(DBH_BindValue));
-    if (!bv)
-        return;
-
-    bv->type = DBH_BIND_VALUE_TYPE_STRING;
-    bv->value.str = text;
-
-    vec_push(vec, &bv);
-}
-
-void dbh_bind_push_null(Vec *vec) {
-    DBH_BindValue *bv = malloc(sizeof(DBH_BindValue));
-    if (!bv)
-        return;
-
-    bv->type = DBH_BIND_VALUE_TYPE_NULL;
-
-    vec_push(vec, &bv);
-}
-
-TDB_CODE dbh_bind_vec(sqlite3 *db, sqlite3_stmt *stmt, Vec *vec) {
-    int fret = TDB_SUCCESS;
-
-    for (int i = 0; i < vec->length; i++) {
-        DBH_BindValue *bind = vec_get_ref(vec, i);
-
-        int ret = TDB_FAIL;
-
-        switch (bind->type) {
+    for (int i = 0; i < bind_length; i++) {
+        BindValue value = arr[i];
+        switch (value.type) {
         case DBH_BIND_VALUE_TYPE_NUMBER:
-            ret = dbh_bind_int(db, stmt, i + 1, bind->value.num);
+            ret = dbh_bind_int(db, stmt, i + 1, value.value.num);
             break;
         case DBH_BIND_VALUE_TYPE_STRING:
-            ret = dbh_bind_text(db, stmt, i + 1, bind->value.str);
+            ret = dbh_bind_text(db, stmt, i + 1, value.value.str);
             break;
         case DBH_BIND_VALUE_TYPE_NULL:
             ret = dbh_bind_int(db, stmt, i + 1, -1);
@@ -172,21 +132,11 @@ TDB_CODE dbh_bind_vec(sqlite3 *db, sqlite3_stmt *stmt, Vec *vec) {
             error_log("Does not support bind type");
         }
 
-        if (ret != TDB_SUCCESS) {
-            fret = ret;
-            goto cleanup;
-        }
+        if (ret != TDB_SUCCESS)
+            goto clean;
     }
-
-cleanup:
-    for (int i = 0; i < vec->length; i++) {
-        DBH_BindValue *bv = *((DBH_BindValue **)vec_get(vec, i));
-        free(bv);
-    }
-
-    vec_free(vec);
-
-    return fret;
+clean:
+    return ret;
 }
 
 /// Return must be `free()`
@@ -205,18 +155,59 @@ int dbh_get_column_int(sqlite3_stmt *stmt, int icol) {
 }
 
 TDB_CODE dbh_sql_execute(sqlite3 *db, sqlite3_stmt *stmt, Vec *out_vec,
-                         TDB_CODE (*collect)(sqlite3_stmt *, Vec *)) {
-
+                         void *(*collect)(sqlite3_stmt *)) {
     int rc;
+    void *data;
     while ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
         if ((out_vec != NULL || collect != NULL) &&
-            collect(stmt, out_vec) != TDB_SUCCESS)
-            return TDB_FAIL;
+            (data = collect(stmt)) != NULL) {
+            vec_push(out_vec, &data);
+        }
     }
 
     if (rc != SQLITE_DONE) {
-        error_log("sql did not finish executing, sql error '%s'",
+        error_log("sqlite3 step did not end when expected to end, possible "
+                  "error \"%s\"",
                   sqlite3_errmsg(db));
+
+        return TDB_FAIL;
+    }
+
+    return TDB_SUCCESS;
+}
+
+TDB_CODE dbh_sql_execute_single(sqlite3 *db, sqlite3_stmt *stmt, void **out,
+                                void *(*collect)(sqlite3_stmt *)) {
+    int rc;
+    void *data;
+
+    if (out != NULL && (rc = sqlite3_step(stmt)) != SQLITE_ROW) {
+        if (rc == SQLITE_DONE)
+            return TDB_NOT_FOUND;
+
+        error_log("sqlite3 step did not found row as expected, possible "
+                  "error \"%s\"",
+                  sqlite3_errmsg(db));
+
+        return TDB_FAIL;
+    } else if (out == NULL && (rc = sqlite3_step(stmt)) != SQLITE_DONE) {
+        error_log("sqlite3 step did not end when expected to end, possible "
+                  "error \"%s\"",
+                  sqlite3_errmsg(db));
+
+        return TDB_FAIL;
+    }
+
+    if (collect != NULL && (data = collect(stmt)) != NULL) {
+        *out = data;
+        rc = sqlite3_step(stmt);
+    }
+
+    if (rc != SQLITE_DONE) {
+        error_log("sqlite3 step did not end when expected to end, possible "
+                  "error \"%s\"",
+                  sqlite3_errmsg(db));
+
         return TDB_FAIL;
     }
 

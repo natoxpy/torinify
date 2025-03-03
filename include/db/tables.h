@@ -6,6 +6,11 @@
 
 typedef struct {
     int id;
+    int migration_index;
+} DotMigrationRow;
+
+typedef struct {
+    int id;
     char *path;
 } MediaSourceRow;
 

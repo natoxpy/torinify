@@ -5,11 +5,10 @@
 #include <torinify/playback.h>
 #include <utils/generic_vec.h>
 
-typedef struct TorinifyContext TorinifyContext;
-struct TorinifyContext {
+typedef struct {
     PlaybackContext *playback;
     sqlite3 *sqlite3;
-};
+} TorinifyContext;
 
 /// Torinigy Global Context
 extern TorinifyContext *tgc;

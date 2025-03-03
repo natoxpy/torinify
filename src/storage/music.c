@@ -1,13 +1,13 @@
-#include <db/exec.h>
-#include <db/helpers.h>
-#include <db/sql.h>
-#include <db/tables.h>
-#include <errors/errors.h>
+#include "storage/music.h"
+#include "db/exec/music_table.h"
+#include "db/sql.h"
+#include "db/tables.h"
+#include "errors/errors.h"
+#include "storage/album.h"
+#include "utils/generic_vec.h"
 #include <sqlite3.h>
 #include <stdio.h>
-#include <storage/album.h>
-#include <storage/music.h>
-#include <utils/generic_vec.h>
+#include <stdlib.h>
 
 Music *s_music_alloc() {
     Music *music = malloc(sizeof(Music));
@@ -45,13 +45,11 @@ T_CODE s_music_get(sqlite3 *db, Music **music_out, MusicQuery query) {
     MusicRow *music_row;
 
     if (query.by == S_MUSIC_QUERY_BY_ID)
-        DB_query_music_single(
-            db, &music_row,
-            (SQLQuery){.by = DB_QUERY_BY_ID, {.id = query.value.id}});
-    else if (query.by == S_MUSIC_QUERY_BY_TITLE)
-        DB_query_music_single(db, &music_row,
-                              (SQLQuery){.by = DB_QUERY_BY_FTS5_TITLE,
-                                         {.title = query.value.title}});
+        DB_query_music_single(db, query.value.id, &music_row);
+    // else if (query.by == S_MUSIC_QUERY_BY_TITLE)
+    //     DB_query_music_single(db, &music_row,
+    //                           (SQLQuery){.by = DB_QUERY_BY_FTS5_TITLE,
+    //                                      {.title = query.value.title}});
     else
         return T_FAIL;
 
@@ -75,20 +73,27 @@ end:
 }
 
 T_CODE s_music_get_all(sqlite3 *db, Vec **out_musics) {
-    Vec *musics = vec_init(sizeof(Music));
+    int ret = T_SUCCESS;
+    Vec *musics = vec_init(sizeof(Music *));
 
-    Vec *music_rows;
-    DB_query_music_all(db, &music_rows);
+    Vec *music_rows = NULL;
+    if (DB_query_music_all(db, &music_rows) != TDB_SUCCESS) {
+        ret = T_FAIL;
+        goto end;
+    }
+
+    if (music_rows == NULL)
+        goto end;
 
     for (int i = 0; i < music_rows->length; i++) {
-        MusicRow *row = vec_get(music_rows, i);
+        MusicRow *row = vec_get_ref(music_rows, i);
         Music *music = s_music_alloc();
 
         music->id = row->id;
         music->title = row->title;
         music->path = row->fullpath;
 
-        vec_push(musics, music);
+        vec_push(musics, &music);
 
         music->title = NULL;
         music->path = NULL;
@@ -100,8 +105,8 @@ T_CODE s_music_get_all(sqlite3 *db, Vec **out_musics) {
 
     *out_musics = musics;
 end:
-    dbt_music_vec_rows_free(music_rows);
-    return T_SUCCESS;
+    vec_free(music_rows);
+    return ret;
 }
 
 void s_vec_music_free(Vec *musics) {

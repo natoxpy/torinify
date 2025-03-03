@@ -35,6 +35,6 @@ void error_print_all();
 #ifndef _ERRORS_DB_ERRORS_H
 #define _ERRORS_DB_ERRORS_H
 
-typedef enum { TDB_FAIL = -1, TDB_SUCCESS = 0 } TDB_CODE;
+typedef enum { TDB_NOT_FOUND = -2, TDB_FAIL = -1, TDB_SUCCESS = 0 } TDB_CODE;
 
 #endif

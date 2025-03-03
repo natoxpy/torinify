@@ -1,138 +1,112 @@
-#include <db/exec.h>
-#include <db/helpers.h>
-#include <db/sql.h>
-#include <db/tables.h>
-#include <errors/errors.h>
+#include "db/exec/music_table.h"
+#include "db/helpers.h"
+#include "errors/errors.h"
 #include <sqlite3.h>
-#include <stdio.h>
-#include <string.h>
+#include <stdlib.h>
 
-TDB_CODE DB_insert_source_row(sqlite3 *db, char *path) {
-    int ret = TDB_SUCCESS;
-    sqlite3_stmt *stmt = NULL;
-
-    if ((ret = dbh_prepare(db, SQL_INSERT_TO_AUDIOSOURCE, &stmt)) !=
-        TDB_SUCCESS) {
-        goto cleanup;
-    }
-
-    // Vec *binds = dbh_bind_init();
-
-    // dbh_bind_push_str(binds, path);
-
-    // ret = dbh_bind_vec(db, stmt, binds);
-    // if (ret != TDB_SUCCESS) {
-    //     error_log("failed because binds");
-    //     goto cleanup;
-    // }
-
-    ret = dbh_sql_execute(db, stmt, NULL, NULL);
-
-    if (ret != TDB_SUCCESS) {
-        error_log("execution failed");
-    }
-
-cleanup:
-    if (stmt)
-        sqlite3_finalize(stmt);
-
-    return ret;
-}
-
-void *source_collect_row(sqlite3_stmt *stmt) {
-    MediaSourceRow *row = malloc(sizeof(MediaSourceRow));
+void *collect_music(sqlite3_stmt *stmt) {
+    MusicRow *row = dbt_music_row_alloc();
 
     row->id = dbh_get_column_int(stmt, 0);
-    row->path = dbh_get_column_text(stmt, 1);
+    row->title = dbh_get_column_text(stmt, 1);
+    row->metadata = dbh_get_column_int(stmt, 2);
+    row->fullpath = dbh_get_column_text(stmt, 3);
+    row->album = dbh_get_column_int(stmt, 4);
+    row->source = dbh_get_column_int(stmt, 5);
 
     return row;
 }
 
-TDB_CODE DB_query_source_all(sqlite3 *db, Vec **sources) {
+TDB_CODE DB_insert_music_row(sqlite3 *db, char *title, int metadata,
+                             char *fullpath, int source, int album,
+                             int *out_row_id) {
     int ret = TDB_SUCCESS;
     sqlite3_stmt *stmt = NULL;
 
-    if ((ret = dbh_prepare(db, SQL_SELECT_ALL_AUDIOSOURCE, &stmt)) !=
-        TDB_SUCCESS) {
-        goto cleanup;
-    }
+    if ((ret = dbh_prepare(db, DB_SQL_MUSIC_INSERT, &stmt)))
+        goto clean;
 
-    *sources = vec_init(sizeof(MediaSourceRow *));
+    BindValue binds[] = {BIND_STR(title), BIND_INT(metadata),
+                         BIND_STR(fullpath), BIND_INT(album), BIND_INT(source)};
 
-    ret = dbh_sql_execute(db, stmt, *sources, source_collect_row);
-cleanup:
+    if ((ret = dbh_bind_array(db, stmt, binds, SIZEOF_BINDS(binds))) !=
+        TDB_SUCCESS)
+        goto clean;
+
+    if ((ret = dbh_sql_execute(db, stmt, NULL, NULL)) != TDB_SUCCESS)
+        goto clean;
+
+    if (out_row_id)
+        *out_row_id = sqlite3_last_insert_rowid(db);
+
+clean:
     if (stmt)
         sqlite3_finalize(stmt);
 
     return ret;
 }
 
-TDB_CODE DB_delete_source(sqlite3 *db, int id) {
-    int ret = TDB_SUCCESS;
-    sqlite3_stmt *stmt = NULL;
-
-    if ((ret = dbh_prepare(db, SQL_REMOVE_AUDIOSOURCE, &stmt)) != TDB_SUCCESS)
-        goto cleanup;
-
-    // Vec *binds = dbh_bind_init();
-    // dbh_bind_push_int(binds, id);
-    // ret = dbh_bind_vec(db, stmt, binds);
-
-    if (ret != TDB_SUCCESS) {
-        error_log("failed because binds");
-        goto cleanup;
-    }
-
-    ret = dbh_sql_execute(db, stmt, NULL, NULL);
-
-cleanup:
-    if (stmt)
-        sqlite3_finalize(stmt);
-
-    return ret;
-}
-
-// TDB_CODE DB_insert_metadata_row(sqlite3 *db, char *artist, int year,
-//                                 char *genre) {
-//     int ret;
-//     sqlite3_stmt *stmt = NULL;
-//     sqlite_int64 row_id = -1; // Variable to store the inserted row's ID
-//
-//     if ((ret = dbh_prepare(db, DB_SQL_METADATA_INSERT, &stmt)) !=
-//     TDB_SUCCESS) {
-//         goto cleanup;
-//     }
-//
-//     sqlite3_bind_text(stmt, 1, artist, -1, SQLITE_STATIC);
-//
-//     if (year != -1)
-//         sqlite3_bind_int(stmt, 2, year);
-//     else
-//         sqlite3_bind_null(stmt, 2);
-//
-//     if (genre != NULL)
-//         sqlite3_bind_text(stmt, 3, genre, -1, SQLITE_STATIC);
-//     else
-//         sqlite3_bind_null(stmt, 3);
-//
-//     ret = sqlite3_step(stmt);
-//     if (ret != SQLITE_DONE) {
-//         goto cleanup;
-//     }
-//
-//     row_id = sqlite3_last_insert_rowid(db);
-// cleanup:
-//     if (stmt)
-//         sqlite3_finalize(stmt);
-//
-//     return (ret == SQLITE_DONE) ? TDB_SUCCESS : TDB_FAIL;
-// }
-
-TDB_CODE DB_insert_album_row(sqlite3 *db, char *title, char *artist, int year) {
+/// @todo implement
+TDB_CODE DB_query_music_single(sqlite3 *db, int id, MusicRow **out_music_row) {
     int ret;
     sqlite3_stmt *stmt = NULL;
 
-cleanup:
+    if ((ret = dbh_prepare(db, DB_SQL_MUSIC_SELECT_WHERE_ID, &stmt)))
+        goto clean;
+
+    if ((ret = dbh_bind_array(db, stmt, (BindValue[]){BIND_INT(id)}, 1)) !=
+        TDB_SUCCESS)
+        goto clean;
+
+    MusicRow *row = NULL;
+    if ((ret = dbh_sql_execute_single(db, stmt, (void *)&row, collect_music)) !=
+        TDB_SUCCESS)
+        goto clean;
+
+    *out_music_row = row;
+clean:
+    if (stmt)
+        sqlite3_finalize(stmt);
+
+    return ret;
+}
+
+TDB_CODE DB_query_music_all(sqlite3 *db, Vec **out_vec_music_row) {
+    int ret;
+    sqlite3_stmt *stmt = NULL;
+
+    if ((ret = dbh_prepare(db, DB_SQL_MUSIC_SELECT, &stmt)) != TDB_SUCCESS)
+        goto clean;
+
+    Vec *out = vec_init(sizeof(MusicRow *));
+    ret = dbh_sql_execute(db, stmt, out, &collect_music);
+    if (ret != TDB_SUCCESS)
+        goto clean;
+
+    *out_vec_music_row = out;
+
+clean:
+    if (stmt)
+        sqlite3_finalize(stmt);
+
+    return ret;
+}
+
+TDB_CODE DB_remove_music_row(sqlite3 *db, int id) {
+    int ret;
+    sqlite3_stmt *stmt = NULL;
+    if ((ret = dbh_prepare(db, DB_SQL_MUSIC_DELETE_WHERE_ID, &stmt)) !=
+        TDB_SUCCESS)
+        goto clean;
+
+    if ((ret = dbh_bind_array(db, stmt, (BindValue[]){BIND_INT(id)}, 1)) !=
+        TDB_SUCCESS)
+        goto clean;
+
+    if ((ret = dbh_sql_execute(db, stmt, NULL, NULL)) != TDB_SUCCESS)
+        goto clean;
+
+clean:
     if (stmt)
         sqlite3_finalize(stmt);
 

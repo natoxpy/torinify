@@ -12,6 +12,13 @@
 /// Torinify Global Context
 TorinifyContext *tgc = NULL;
 
+Queue *get_active_queue() {
+    if (tgc->playback->active_queue == UINT32_MAX)
+        return NULL;
+
+    return vec_get(tgc->playback->queues, tgc->playback->active_queue);
+}
+
 T_CODE tf_init_db(char *filename) {
     int ret;
 
@@ -38,7 +45,12 @@ T_CODE tf_sqlite3_init(char *filename) {
     return T_SUCCESS;
 }
 
-T_CODE tf_sqlite3_migrations() { return m_migrations(tgc->sqlite3); }
+T_CODE tf_sqlite3_migrations() {
+    if (migrate_database(tgc->sqlite3) == TDB_SUCCESS)
+        return T_SUCCESS;
+    else
+        return T_FAIL;
+}
 
 /// Initiates Torinify Global Context (`tgc`)
 T_CODE tf_init() {
@@ -98,28 +110,62 @@ T_CODE tf_set_src(char *filename) {
     a_playback_feed_init(&pbfeed, au_vec, sample_rate, nb_channels);
     a_playback(pbfeed);
 
-    tgc->playback->feed = pbfeed;
+    Queue *q = get_active_queue();
+
+    if (q == NULL)
+        return T_FAIL;
+
+    q->feed = pbfeed;
 
     return T_SUCCESS;
 }
 
 T_CODE tf_play() {
-    a_play(tgc->playback->feed);
+    Queue *q = get_active_queue();
+
+    if (q == NULL)
+        return T_FAIL;
+
+    a_play(q->feed);
     return T_SUCCESS;
 }
 
 T_CODE tf_pause() {
-    a_pause(tgc->playback->feed);
+    Queue *q = get_active_queue();
+
+    if (q == NULL)
+        return T_FAIL;
+
+    a_pause(q->feed);
     return T_SUCCESS;
 }
 
-int tf_get_paused() { return tgc->playback->feed->paused; }
+int tf_get_paused() {
+    Queue *q = get_active_queue();
 
-void tf_set_current_time(long miliseconds) {
-    a_set_current_time(tgc->playback->feed, miliseconds);
+    if (q == NULL)
+        return 0;
+
+    return q->feed->paused;
 }
 
-long tf_get_current_time() { return a_get_current_time(tgc->playback->feed); }
+void tf_set_current_time(long miliseconds) {
+    Queue *q = get_active_queue();
+
+    if (q == NULL)
+        return;
+
+    a_set_current_time(q->feed, miliseconds);
+}
+
+long tf_get_current_time() {
+    Queue *q = get_active_queue();
+
+    if (q == NULL)
+        return 0;
+
+    return a_get_current_time(q->feed);
+}
 
 void tf_search(char *query, double threshold, Vec **results) {
     Vec *search_ctx = NULL;

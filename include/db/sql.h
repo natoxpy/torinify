@@ -61,25 +61,10 @@ const static char *DB_SQL_ALBUM_INSERT =
 #ifndef _DB_SQL_H_MUSIC
 #define _DB_SQL_H_MUSIC
 
-const static char *DB_SQL_MUSIC_INSERT =
-    "INSERT INTO Music (title, metadata, fullpath, album, source) "
-    "VALUES (?,?,?,?,?);";
-
-const static char *DB_SQL_MUSIC_SELECT =
-    "SELECT id, title, fullpath, source, album, metadata FROM Music %s;";
-
-const static char *DB_SQL_MUSIC_SEARCH =
-    "SELECT id, title, fullpath, source, album, metadata FROM Music "
-    "WHERE id IN (SELECT rowid FROM MusicFTS %s);";
-
 #endif
 
 #ifndef _DB_SQL_H_METADATA
 #define _DB_SQL_H_METADATA
-
-const static char *DB_SQL_METADATA_INSERT =
-    "INSERT INTO Metadata (artist, year, genre) "
-    "VALUES (?,?,?);";
 
 #endif
 

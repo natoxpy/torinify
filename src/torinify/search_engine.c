@@ -1,3 +1,5 @@
+#include "db/exec/music_table.h"
+#include "db/tables.h"
 #include "utils/generic_vec.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -64,12 +66,13 @@ void s_search_result_free(SearchResult *search_result) {
 
 void s_vec_search_context_init(sqlite3 *db, Vec **search_ctx_out) {
     Vec *musics;
-    s_music_get_all(db, &musics);
+    // s_music_get_all(db, &musics);
+    DB_query_music_all(db, &musics);
 
     Vec *search_ctx = vec_init(sizeof(SearchContext));
 
     for (int i = 0; i < musics->length; i++) {
-        Music *music = vec_get(musics, i);
+        MusicRow *music = vec_get_ref(musics, i);
         SearchContext sctx = {music->id, music->title, NULL, NULL, NULL};
 
         vec_push(search_ctx, &sctx);
@@ -79,7 +82,8 @@ void s_vec_search_context_init(sqlite3 *db, Vec **search_ctx_out) {
 
     *search_ctx_out = search_ctx;
 
-    s_vec_music_free(musics);
+    dbt_music_vec_rows_free(musics);
+    // s_vec_music_free(musics);
 }
 
 void s_vec_search_context_free(Vec *search_ctx_vec) {

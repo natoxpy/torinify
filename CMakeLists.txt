@@ -10,12 +10,12 @@ if(WIN32)
 endif()
 
 if(UNIX)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -fsanitize=address")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -fsanitize=address")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -fsanitize=address") # -fsanitize=address
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -fsanitize=address") # -fsanitize=address
 endif()
 
-file(GLOB lib_sources
-    "src/*/*.c"
+file(GLOB_RECURSE lib_sources
+    "src/**/*.c"
 )
 
 list(REMOVE_ITEM lib_sources "src/main.c")
@@ -84,7 +84,7 @@ target_link_libraries(${PROJECT_NAME}
     avcodec avformat avutil swresample swscale)
 
 # Link against math library
-if (UNIX) 
+if (UNIX)
     target_link_libraries(${PROJECT_NAME} PUBLIC m)
 endif()
 
@@ -112,3 +112,19 @@ if (UNIX)
         z        # zlib
     )
 endif()
+
+# ------- MAIN EXECUTABLE --------
+# Define the test executable
+add_executable(test "tests/test.c")
+
+# Link the executable to the library
+target_include_directories(test PUBLIC include)
+target_link_libraries(test PUBLIC ${PROJECT_NAME})
+
+if (UNIX)
+    target_link_libraries(test PRIVATE
+        m        # math library
+        z        # zlib
+    )
+endif()
+
