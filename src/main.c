@@ -1,10 +1,12 @@
 #include "media/scan.h"
+#include "torinify/playback.h"
 #include "utils/generic_vec.h"
 #include <db/exec.h>
 #include <db/exec/music_table.h>
 #include <db/helpers.h>
 #include <db/sql.h>
 #include <db/tables.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <torinify/core.h>
@@ -60,6 +62,10 @@ int inline static is_rejected(Key key) {
 
 int inline static is_esc(Key key) {
     return key.keytype == KEY_SPECIAL && strcmp(key.ch.special, "Esc") == 0;
+}
+
+int inline static is_space(Key key) {
+    return key.keytype == KEY_SPECIAL && strcmp(key.ch.special, "Space") == 0;
 }
 
 #ifdef __unix__
@@ -303,6 +309,9 @@ Key readkey_nb() {
     } else if (c == 27) {
         key.keytype = KEY_SPECIAL;
         key.ch.special = "Esc";
+    } else if (c == 32) {
+        key.keytype = KEY_SPECIAL;
+        key.ch.special = "Space";
     } else {
         key.keytype = KEY_STANDARD;
         key.ch.standard = c;
@@ -325,6 +334,9 @@ Key readkey() {
     } else if (c == 27) {
         key.keytype = KEY_SPECIAL;
         key.ch.special = "Esc";
+    } else if (c == 32) {
+        key.keytype = KEY_SPECIAL;
+        key.ch.special = "Space";
     } else {
         key.keytype = KEY_STANDARD;
         key.ch.standard = c;
@@ -404,6 +416,17 @@ T_CODE setup() {
 void inline static clean_screen() { oss_clean_screen(); }
 
 void collect_text(Text *text, Key key) {
+    if (is_space(key)) {
+        if (text->len >= text->cap) {
+            printf("too large\n");
+            return;
+        }
+
+        text->str[text->len] = ' ';
+        text->str[text->len + 1] = '\0';
+        text->len++;
+    }
+
     if (key.keytype != KEY_STANDARD) {
         return;
     }
@@ -477,7 +500,6 @@ int handle_arrow_key(Key key, AppContext *app_ctx) {
 
     switch (key.ch.arrow) {
     case ARROW_UP:
-
         app_ctx->selected--;
 
         if (app_ctx->selected < 0) {
@@ -493,6 +515,8 @@ int handle_arrow_key(Key key, AppContext *app_ctx) {
         }
 
         break;
+    default:
+        return 0;
     }
     return 1;
 }
@@ -530,7 +554,7 @@ int media_page(AppContext *app);
 int playback_page(AppContext *app);
 #endif
 
-Queue *get_core_queue() { return vec_get(tgc->playback->queues, 0); }
+Queue *get_core_queue() { return vec_get_ref(tgc->playback->queues, 0); }
 
 void app_cleanup() {
     cleanup();
@@ -547,7 +571,7 @@ int main() {
 #ifdef _WIN32
     int _ = freopen("null", "w", stderr);
 #elif __unix__
-    freopen("/dev/null", "w", stderr);
+    // freopen("/dev/null", "w", stderr);
 #endif
 
     atexit(app_cleanup);
@@ -648,7 +672,6 @@ int home_page() {
 /// === SEARCH PAGE ===
 
 int search_page(AppContext *app) {
-
     if (app->search_results != NULL && app->search_results->length == 0)
         printf("\n[Esc] Return\n");
     else
@@ -661,12 +684,30 @@ int search_page(AppContext *app) {
     max = max - 4;
 
     if (app->search_results) {
+        Queue *q = get_core_queue();
 
         for (int i = 0; i < app->search_results->length; i++) {
             if (i >= max)
                 break;
 
             SearchResult *result = vec_get(app->search_results, i);
+
+            bool in_queue = false;
+            for (int j = 0; j < q->songs->length; j++) {
+                MusicQueue *mq = pb_q_get(q, j);
+                if (result->rowid == mq->id) {
+                    in_queue = true;
+                    break;
+                }
+            }
+
+            if (in_queue) {
+                if (i == app->selected)
+                    printf(" >| %s\n", result->title);
+                else
+                    printf(" | %s\n", result->title);
+                continue;
+            }
 
             if (i == app->selected) {
                 printf(" > %s\n", result->title);
@@ -689,10 +730,30 @@ int search_page(AppContext *app) {
 
     if (app->selected < max && is_enter(key) && app->search_results != NULL &&
         app->search_results->length != 0) {
+
         SearchResult *result = vec_get(app->search_results, app->selected);
 
         MusicRow *row;
         DB_query_music_single(tgc->sqlite3, result->rowid, &row);
+
+        Queue *q = get_core_queue();
+
+        for (int j = 0; j < q->songs->length; j++) {
+            MusicQueue *mq = pb_q_get(q, j);
+            if (result->rowid == mq->id) {
+                text_copy(&app->logmsg, "Already in Q");
+                dbt_music_row_free(row);
+                return 0;
+            }
+        }
+
+        MusicQueue *mq = pb_musicq_alloc();
+
+        mq->title = strdup(row->title);
+        mq->fullpath = strdup(row->fullpath);
+        mq->id = row->id;
+
+        pb_q_add(q, mq);
 
         if (row) {
             char txt[255];
@@ -703,9 +764,11 @@ int search_page(AppContext *app) {
         }
 
         dbt_music_row_free(row);
+        return 0;
     }
 
     collect_text(&app->search_query, key);
+    app->selected = 0;
 
     s_vec_search_result_free(app->search_results);
     tf_search(app->search_query.str, 0.2, &app->search_results);
@@ -989,61 +1052,232 @@ int media_page(AppContext *app_ctx) {
 
 /// === PLAYBACK PAGE ===
 
-int playback_page(AppContext *app_ctx) {
-    usleep(10 * 1000);
-    clean_screen();
+void playback_queue_list_component(AppContext *app_ctx) {
+    Queue *q = get_core_queue();
 
-    app_ctx->max_selected = 1;
+    if (q->songs->length == 0) {
+        printf(" No Songs Yet\n");
+    }
 
-    printf("Playback - Playing - Iron Lotus - \n");
-    printf("[Esc] Return \n");
-    printf("[p] Play Song | [<Space>] Play/Pause | [l] toggle loop options \n");
-
-    printf("----------- \n");
-    printf(" Q - loop single \n");
-
-    Vec *sg = vec_init(sizeof(char *));
-    char *_a = "Iron Lotus";
-    char *_b = "Grown-Up's Paradise";
-    vec_push(sg, &_a);
-    vec_push(sg, &_b);
-
-    for (int i = 0; i < sg->length; i++) {
-        char *n = vec_get_ref(sg, i);
+    for (int i = 0; i < q->songs->length; i++) {
+        MusicQueue *mq = pb_q_get(q, i);
         char cursor = '-';
 
         if (app_ctx->selected == i)
             cursor = '>';
 
-        printf(" %c %s\n", cursor, n);
+        printf(" %c %s\n", cursor, mq->title);
+    }
+}
+
+void playback_volume_component(AppContext *app_ctx) {
+    Queue *q = get_core_queue();
+
+    if (q->feed) {
+        printf(" volume   :   ");
+
+        int volume = q->feed->volume * 10;
+
+        if (volume == 10)
+            printf("%d", volume);
+        else
+            printf("0%d", volume);
+
+        printf(" [");
+
+        for (int i = 0; i < 10; i++) {
+            if (volume > i)
+                printf("░");
+            else
+                printf(" ");
+        }
+
+        printf("]");
+
+        printf("\n");
+    } else {
+        printf(" volume   :    -- [          ]   \n");
+    }
+}
+
+void playback_timeline_component(AppContext *app_ctx) {
+    Queue *q = get_core_queue();
+
+    if (q->feed) {
+        long duration_s = a_get_duration(q->feed) / 1000;
+        long current_time_s = a_get_current_time(q->feed) / 1000;
+
+        long displaym = current_time_s / 60;
+        long displays = current_time_s % 60;
+
+        long d_displaym = duration_s / 60;
+        long d_displays = duration_s % 60;
+
+        printf(" timeline : ");
+
+        printf("%ld", displaym);
+        printf(":");
+        if (displays >= 10)
+            printf("%ld", displays);
+        else
+            printf("0%ld", displays);
+
+        printf(" [");
+
+        float ratio = (float)current_time_s / (float)duration_s;
+
+        for (int i = 0; i < 30; i++) {
+            if ((int)(ratio * 30) > i) {
+                printf("░");
+            } else
+                printf(" ");
+        }
+
+        printf("] ");
+
+        printf("%ld", d_displaym);
+        printf(":");
+        if (d_displays >= 10)
+            printf("%ld", d_displays);
+        else
+            printf("0%ld", d_displays);
+
+        printf("\n");
+    } else
+        printf(" timeline : --:-- [                   ] --:--\n");
+}
+
+void playback_handle_arrow_input(AppContext *app_ctx, Key key) {
+    handle_arrow_key(key, app_ctx);
+    Queue *q = get_core_queue();
+
+    bool state = q->feed->paused;
+
+    pb_q_pause(q);
+    switch (key.ch.arrow) {
+    case ARROW_LEFT: {
+        long ct = a_get_current_time(q->feed);
+        long nt = ct - 1000 * 3;
+
+        if (nt < 0)
+            nt = 0;
+
+        a_set_current_time(q->feed, nt);
+        break;
     }
 
-    // printf(" > 1. Iron Lotus (Playing)   \n");
-    // printf("   2. Grown-Up's Paradise \n");
+    case ARROW_RIGHT:
 
-    vec_free(sg);
+    {
+        long d = a_get_duration(q->feed);
+        long ct = a_get_current_time(q->feed);
+        long nt = ct + 1000 * 3;
+
+        if (nt > d)
+            nt = d;
+
+        a_set_current_time(q->feed, nt);
+        break;
+    }
+    }
+
+    if (state == false)
+        pb_q_play(q);
+}
+
+int playback_page(AppContext *app_ctx) {
+    usleep(35 * 1000);
+    clean_screen();
+
+    Queue *q = get_core_queue();
+
+    if (q == NULL)
+        return 1;
+
+    char *song_status = "[]";
+    char *song_name = "[]";
+
+    if (q->feed != NULL && q->feed->paused) {
+        song_status = "Paused";
+    } else if (q->feed != NULL && !q->feed->paused) {
+        song_status = "Playing";
+    }
+
+    if (q->feed) {
+        MusicQueue *mq = pb_q_get_active(q);
+        song_name = mq->title;
+    }
+
+    int width;
+    oss_get_terminal_size(&width, NULL);
+
+    printf("Playback - %s - %s \n", song_status, song_name);
+    printf("[Esc] Return \n");
+
+    // [l] toggle loop options "
+    printf("[p] Play Song | [<Space>] Play/Pause | [< | >] Seek | [<[> | <]>] "
+           "Volume | "
+           "[r] Remove from queue \n");
 
     printf("----------- \n");
-    printf(" volume   :   10 [xxxxxxxxxx]   \n");
+    printf(" Q - loop single \n");
+
+    if (q->songs->length > 0)
+        app_ctx->max_selected = q->songs->length - 1;
+
+    playback_queue_list_component(app_ctx);
+
     printf("----------- \n");
-    printf(" timeline : 0:20 [xxxx               ] 3:23    \n");
+    playback_volume_component(app_ctx);
+    printf("----------- \n");
+    playback_timeline_component(app_ctx);
     printf("----------- \n");
 
     Key key = readkey_nb();
+    if (no_input(key))
+        return 0;
+
     if (is_esc(key))
         return 1;
 
-    if (no_input(key)) {
-        return 0;
+    if (is_space(key)) {
+        if (pb_q_paused(q))
+            pb_q_play(q);
+        else
+            pb_q_pause(q);
     }
 
     if (key.keytype == KEY_ARROW) {
-        handle_arrow_key(key, app_ctx);
+        playback_handle_arrow_input(app_ctx, key);
         return 0;
     }
 
     if (key.keytype != KEY_STANDARD)
         return 0;
+
+    if (key.ch.standard == 'r' && q->songs->length > 0) {
+        pb_q_remove(q, app_ctx->selected);
+        if (app_ctx->selected == 0)
+            return 0;
+        app_ctx->selected--;
+    }
+
+    if (key.ch.standard == 'p' && q->songs->length > 0) {
+        pb_q_set_active(q, app_ctx->selected);
+        pb_q_play(q);
+    }
+
+    if (key.ch.standard == '[' && q->feed) {
+        q->feed->volume -= 0.1;
+        if (q->feed->volume < 0)
+            q->feed->volume = 0;
+    }
+
+    if (key.ch.standard == ']' && q->feed) {
+        q->feed->volume += 0.1;
+        if (q->feed->volume > 1)
+            q->feed->volume = 1;
+    }
 
     return 0;
 }

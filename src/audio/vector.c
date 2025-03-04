@@ -14,6 +14,7 @@ AAudioVector *a_audio_vector_alloc(size_t capacity) {
     au_vec->ptr = calloc(capacity, sizeof(uint8_t));
     au_vec->capacity = capacity;
     au_vec->length = 0;
+    au_vec->samples = 0;
 
     return au_vec;
 }
@@ -37,6 +38,7 @@ int a_audio_vector_init(AAudioVector **au_vec, uint8_t *data, size_t size) {
     audio_vec->ptr = data;
     audio_vec->capacity = size;
     audio_vec->length = size;
+    audio_vec->samples = 0;
 
     *au_vec = audio_vec;
     return 0;

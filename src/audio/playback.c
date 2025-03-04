@@ -171,3 +171,10 @@ long a_get_current_time(APlaybackFeed *playback_feed) {
 
     return (long)(samples_ms * 1000);
 }
+
+long a_get_duration(APlaybackFeed *playback_feed) {
+    float samples_ms =
+        (float)playback_feed->data->samples / (float)playback_feed->sample_rate;
+
+    return (long)(samples_ms * 1000);
+}

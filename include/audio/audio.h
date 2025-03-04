@@ -20,6 +20,7 @@ struct AAudioVector {
     uint8_t *ptr;
     int capacity;
     size_t length;
+    int samples;
 };
 
 typedef struct AAudioContextBuffer AAudioContextBuffer;
@@ -117,5 +118,5 @@ void a_play(APlaybackFeed *playback_feed);
 void a_set_current_time(APlaybackFeed *playback_feed,
                         unsigned long miliseconds);
 long a_get_current_time(APlaybackFeed *playback_feed);
-
+long a_get_duration(APlaybackFeed *playback_feed);
 #endif

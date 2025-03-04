@@ -76,8 +76,6 @@ int a_audio_decode(AAudioContext *au_ctx, AAudioVector **out_au_vec) {
     if (ret < 0)
         goto end;
 
-    int dst_nb_samples, max_dst_nb_samples, src_nb_samples = src_nb_samples;
-
     while (1) {
         if ((ret = av_read_frame(au_ctx->fmt_ctx, packet)) < 0)
             break;
@@ -113,6 +111,8 @@ int a_audio_decode(AAudioContext *au_ctx, AAudioVector **out_au_vec) {
             int size = output_nb_samples *
                        av_get_bytes_per_sample(AV_SAMPLE_FMT_FLT) *
                        frame->ch_layout.nb_channels;
+
+            audio_vec->samples += output_nb_samples;
 
             a_audio_vector_push(audio_vec, output_buffer,
                                 output_nb_samples * sizeof(float) *

@@ -4,7 +4,7 @@
 #include <utils/generic_vec.h>
 
 typedef struct {
-    uint32_t rowid;
+    int rowid;
     char *title;
     char *album;
     Vec *alt_titles;
@@ -12,7 +12,7 @@ typedef struct {
 } SearchContext;
 
 typedef struct {
-    uint32_t rowid;
+    int rowid;
     double distance;
     char *title;
 } SearchResult;

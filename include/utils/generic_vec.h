@@ -76,4 +76,9 @@ void *vec_pop_ref(Vec *vec);
  */
 void vec_n_split_vec(Vec *vec, Vec **vecs, int n);
 
+/**
+ * @memberof Vec
+ */
+void vec_remove(Vec *vec, int n);
+
 #endif

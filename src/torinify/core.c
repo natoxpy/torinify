@@ -68,6 +68,8 @@ T_CODE tf_init() {
     if ((ret = pb_init(&tgc->playback)) != T_SUCCESS)
         return ret;
 
+    av_log_set_level(AV_LOG_QUIET);
+
     return T_SUCCESS;
 }
 

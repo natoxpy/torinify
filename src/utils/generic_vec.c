@@ -123,6 +123,27 @@ void *vec_pop(Vec *vec) {
 
 void *vec_pop_ref(Vec *vec) { return *(void **)vec_pop(vec); }
 
+// Must be freed
+void vec_remove(Vec *vec, int n) {
+    if (n >= vec->length || vec->length == 0)
+        return;
+
+    int to_copy = vec->length - n - 1;
+
+    if (to_copy == 0) {
+        vec_pop(vec);
+        return;
+    }
+
+    memmove(vec->data + (vec->element_size * n),
+            vec->data + (vec->element_size * (n + 1)),
+            vec->element_size * to_copy);
+
+    vec->length -= 1;
+
+    return;
+}
+
 void vec_n_split_vec(Vec *vec, Vec **vecs, int n) {
     Vec *out = vec_init_with_capacity(vec->element_size, n);
 
