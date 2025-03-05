@@ -16,15 +16,7 @@ TDB_CODE DB_insert_source_row(sqlite3 *db, char *path) {
         goto cleanup;
     }
 
-    // Vec *binds = dbh_bind_init();
-
-    // dbh_bind_push_str(binds, path);
-
-    // ret = dbh_bind_vec(db, stmt, binds);
-    // if (ret != TDB_SUCCESS) {
-    //     error_log("failed because binds");
-    //     goto cleanup;
-    // }
+    dbh_bind_array(db, stmt, (BindValue[]){BIND_STR(path)}, 1);
 
     ret = dbh_sql_execute(db, stmt, NULL, NULL);
 
