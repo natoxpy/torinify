@@ -1160,7 +1160,7 @@ void playback_handle_arrow_input(AppContext *app_ctx, Key key) {
     pb_q_pause(q);
     switch (key.ch.arrow) {
     case ARROW_LEFT: {
-        a_set_current_time(q->feed, pb_q_get_current_time(q) - 3);
+        pb_q_set_current_time(q, pb_q_get_current_time(q) - 3);
         break;
     }
 
