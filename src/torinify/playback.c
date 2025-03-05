@@ -73,6 +73,7 @@ Queue *pb_q_alloc() {
     q->feed = NULL;
     q->songs = vec_init(sizeof(MusicQueue *));
     q->volume = 1;
+    q->loopstyle = P_LOOP_SINGLE;
 
     return q;
 }
@@ -114,6 +115,10 @@ void pb_q_remove(Queue *q, int index) {
         a_playback_feed_free(q->feed);
         q->feed = NULL;
         q->active = -1;
+    }
+
+    if (q->active >= index) {
+        q->active--;
     }
 
     MusicQueue *mq = vec_get_ref(q->songs, index);
@@ -232,6 +237,12 @@ bool pb_q_is_finished(Queue *q) {
     long duration = q->feed->data->length / (sizeof(float) * q->feed->channels);
 
     return duration == q->feed->samples_played;
+}
+
+bool pb_q_is_paused(Queue *q) {
+    if (q->feed == NULL)
+        true;
+    return q->feed->paused;
 }
 
 void pb_q_set_current_time(Queue *q, float seconds) {

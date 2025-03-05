@@ -1060,6 +1060,9 @@ void playback_queue_list_component(AppContext *app_ctx) {
     }
 
     for (int i = 0; i < q->songs->length; i++) {
+        if (q->feed == NULL)
+            break;
+
         MusicQueue *mq = pb_q_get(q, i);
         char cursor = '-';
         char *suffix = "";
@@ -1067,7 +1070,9 @@ void playback_queue_list_component(AppContext *app_ctx) {
         if (app_ctx->selected == i)
             cursor = '>';
 
-        if (q->active == i)
+        if (q->active == i && q->feed->paused)
+            suffix = "(paused)";
+        else if (q->active == i && !q->feed->paused)
             suffix = "(playing)";
 
         printf(" %c %s %s\n", cursor, mq->title, suffix);
@@ -1157,7 +1162,9 @@ void playback_handle_arrow_input(AppContext *app_ctx, Key key) {
 
     bool state = q->feed->paused;
 
-    pb_q_pause(q);
+    if (q->feed == NULL)
+        return;
+
     switch (key.ch.arrow) {
     case ARROW_LEFT: {
         pb_q_set_current_time(q, pb_q_get_current_time(q) - 3);
@@ -1169,9 +1176,6 @@ void playback_handle_arrow_input(AppContext *app_ctx, Key key) {
         break;
     }
     }
-
-    if (state == false)
-        pb_q_play(q);
 }
 
 int playback_page(AppContext *app_ctx) {
@@ -1188,8 +1192,18 @@ int playback_page(AppContext *app_ctx) {
             q->feed->data->length / (sizeof(float) * q->feed->channels);
         long current_time = q->feed->samples_played;
 
-        if (q->feed->paused == false && duration == current_time) {
-            pb_q_next(q);
+        if (!pb_q_is_paused(q) && pb_q_is_finished(q)) {
+            switch (q->loopstyle) {
+            case P_LOOP_NONE:
+                pb_q_pause(q);
+                break;
+            case P_LOOP_SINGLE:
+                pb_q_set_current_time(q, 0);
+                break;
+            case P_LOOP_QUEUE:
+                pb_q_next(q);
+                break;
+            }
         }
 
         if (pb_q_is_finished(q) && pb_q_is_last(q)) {
@@ -1217,13 +1231,23 @@ int playback_page(AppContext *app_ctx) {
     printf("Playback - %s - %s \n", song_status, song_name);
     printf("[Esc] Return \n");
 
-    // [l] toggle loop options "
     printf("[p] Play Song | [<Space>] Play/Pause | [< | >] Seek | [<[> | <]>] "
            "Volume | "
-           "[r] Remove from queue \n");
+           "[r] Remove from queue | [l] toggle loop options \n");
 
     printf("----------- \n");
-    printf(" Q - loop single \n");
+    printf(" Q ");
+
+    switch (q->loopstyle) {
+    case P_LOOP_NONE:
+        printf("\n");
+        break;
+    case P_LOOP_SINGLE:
+        printf("- loop single \n");
+        break;
+    case P_LOOP_QUEUE:
+        printf("- loop queue \n");
+    }
 
     if (q->songs->length > 0)
         app_ctx->max_selected = q->songs->length - 1;
@@ -1235,9 +1259,6 @@ int playback_page(AppContext *app_ctx) {
     printf("----------- \n");
     playback_timeline_component(app_ctx);
     printf("----------- \n");
-
-    long t = q->feed->data->length / (sizeof(float) * q->feed->channels);
-    long s = q->feed->samples_played;
 
     Key key = readkey_nb();
     if (no_input(key))
@@ -1274,11 +1295,22 @@ int playback_page(AppContext *app_ctx) {
     }
 
     if (key.ch.standard == '[' && q->feed) {
-        pb_q_set_volume(q, q->volume - 0.1);
+        float vol = q->volume * 10;
+        pb_q_set_volume(q, (vol - 1) / 10);
     }
 
     if (key.ch.standard == ']' && q->feed) {
-        pb_q_set_volume(q, q->volume + 0.1);
+        float vol = q->volume * 10;
+        pb_q_set_volume(q, (vol + 1) / 10);
+    }
+
+    if (key.ch.standard == 'l') {
+        uint8_t l = q->loopstyle + 1;
+
+        if (l > P_LOOP_SINGLE)
+            l = P_LOOP_NONE;
+
+        q->loopstyle = l;
     }
 
     return 0;
