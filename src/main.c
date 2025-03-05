@@ -1275,18 +1275,10 @@ int playback_page(AppContext *app_ctx) {
 
     if (key.ch.standard == '[' && q->feed) {
         pb_q_set_volume(q, q->volume - 0.1);
-
-        // q->feed->volume -= 0.1;
-        // if (q->feed->volume < 0)
-        //     q->feed->volume = 0;
     }
 
     if (key.ch.standard == ']' && q->feed) {
         pb_q_set_volume(q, q->volume + 0.1);
-
-        // q->feed->volume += 0.1;
-        // if (q->feed->volume > 1)
-        //     q->feed->volume = 1;
     }
 
     return 0;
