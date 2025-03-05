@@ -129,31 +129,31 @@ void a_play(APlaybackFeed *playback_feed) {
     ma_device_start(playback_feed->device);
 }
 
-void a_set_current_time(APlaybackFeed *playback_feed,
-                        unsigned long miliseconds) {
+void a_set_current_time(APlaybackFeed *playback_feed, float seconds) {
     if (!playback_feed->device)
         return;
 
-    long samples_ms = playback_feed->sample_rate / 1000;
-    playback_feed->samples_played = samples_ms * miliseconds;
+    float total_samples = (float)playback_feed->data->length /
+                          (sizeof(float) * playback_feed->channels);
+
+    int new_samples = (int)(seconds * playback_feed->sample_rate);
+
+    if (new_samples < 0)
+        new_samples = 0;
+
+    if (new_samples > total_samples)
+        new_samples = total_samples;
+
+    playback_feed->samples_played = new_samples;
 }
 
-long a_get_current_time(APlaybackFeed *playback_feed) {
-    float samples_ms = (float)playback_feed->samples_played /
-                       (float)playback_feed->sample_rate;
-
-    return (long)(samples_ms * 1000);
+float a_get_current_time(APlaybackFeed *playback_feed) {
+    return (float)playback_feed->samples_played / playback_feed->sample_rate;
 }
 
-long a_get_duration(APlaybackFeed *playback_feed) {
-    double total_samples = (double)(playback_feed->data->length) /
-                           (sizeof(float) * playback_feed->channels);
+float a_get_duration(APlaybackFeed *playback_feed) {
+    float total_samples = (float)playback_feed->data->length /
+                          (sizeof(float) * playback_feed->channels);
 
-    float samples_ms = (float)total_samples / (float)playback_feed->sample_rate;
-
-    // float samples_ms =
-    //     (float)playback_feed->data->samples /
-    //     (float)playback_feed->sample_rate;
-
-    return (long)(samples_ms * 1000);
+    return total_samples / playback_feed->sample_rate;
 }

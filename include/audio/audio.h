@@ -115,8 +115,14 @@ T_CODE a_playback_feed_init(APlaybackFeed **pb, AAudioVector *au_vec,
 T_CODE a_playback(APlaybackFeed *playback_feed);
 void a_pause(APlaybackFeed *playback_feed);
 void a_play(APlaybackFeed *playback_feed);
-void a_set_current_time(APlaybackFeed *playback_feed,
-                        unsigned long miliseconds);
-long a_get_current_time(APlaybackFeed *playback_feed);
-long a_get_duration(APlaybackFeed *playback_feed);
+
+/**
+ * The function also handles two common cases:
+ *
+ * - If `seconds` is negative, it is set to `0`.
+ * - If `seconds` exceeds `a_get_duration`, it is set to `a_get_duration`.
+ */
+void a_set_current_time(APlaybackFeed *playback_feed, float seconds);
+float a_get_current_time(APlaybackFeed *playback_feed);
+float a_get_duration(APlaybackFeed *playback_feed);
 #endif

@@ -55,8 +55,16 @@ void pb_q_add(Queue *q, MusicQueue *m);
 void pb_q_remove(Queue *q, int index);
 
 void pb_q_set_active(Queue *q, int index);
-
 void pb_q_set_volume(Queue *q, float volume);
+
+/// wrapper over `a_set_current_time`
+void pb_q_set_current_time(Queue *q, float seconds);
+
+/// wrapper over `a_get_current_time`
+float pb_q_get_current_time(Queue *q);
+
+/// wrapper over `a_get_duration`
+float pb_q_get_duration(Queue *q);
 
 void pb_q_next(Queue *q);
 void pb_q_previous(Queue *q);

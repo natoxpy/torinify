@@ -1108,8 +1108,8 @@ void playback_timeline_component(AppContext *app_ctx) {
     Queue *q = get_core_queue();
 
     if (q->feed) {
-        long duration_s = a_get_duration(q->feed) / 1000;
-        long current_time_s = a_get_current_time(q->feed) / 1000;
+        long duration_s = a_get_duration(q->feed);
+        long current_time_s = a_get_current_time(q->feed);
 
         long displaym = current_time_s / 60;
         long displays = current_time_s % 60;
@@ -1160,36 +1160,12 @@ void playback_handle_arrow_input(AppContext *app_ctx, Key key) {
     pb_q_pause(q);
     switch (key.ch.arrow) {
     case ARROW_LEFT: {
-        long ct = q->feed->samples_played;
-
-        long nt = ct - (q->feed->sample_rate * 3);
-        if (nt < 0)
-            nt = 0;
-
-        q->feed->samples_played = nt;
-
+        a_set_current_time(q->feed, pb_q_get_current_time(q) - 3);
         break;
     }
 
     case ARROW_RIGHT: {
-        long sd = q->feed->data->length / (sizeof(float) * q->feed->channels);
-        long ct = q->feed->samples_played;
-
-        long nt = ct + (q->feed->sample_rate * 3);
-
-        if (nt > sd)
-            nt = sd;
-
-        q->feed->samples_played = nt;
-
-        // long d = a_get_duration(q->feed);
-        // long ct = a_get_current_time(q->feed);
-        // long nt = ct + 1000 * 3;
-
-        // if (nt > d)
-        //     nt = d;
-
-        // a_set_current_time(q->feed, nt);
+        pb_q_set_current_time(q, pb_q_get_current_time(q) + 3);
         break;
     }
     }

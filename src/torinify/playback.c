@@ -233,3 +233,24 @@ bool pb_q_is_finished(Queue *q) {
 
     return duration == q->feed->samples_played;
 }
+
+void pb_q_set_current_time(Queue *q, float seconds) {
+    if (q->feed == NULL)
+        return;
+
+    a_set_current_time(q->feed, seconds);
+}
+
+float pb_q_get_current_time(Queue *q) {
+    if (q->feed == NULL)
+        return 0;
+
+    return a_get_current_time(q->feed);
+}
+
+float pb_q_get_duration(Queue *q) {
+    if (q->feed == NULL)
+        return 0;
+
+    return a_get_duration(q->feed);
+}
