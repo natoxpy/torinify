@@ -1156,27 +1156,36 @@ void playback_handle_arrow_input(AppContext *app_ctx, Key key) {
     pb_q_pause(q);
     switch (key.ch.arrow) {
     case ARROW_LEFT: {
-        long ct = a_get_current_time(q->feed);
-        long nt = ct - 1000 * 3;
+        long ct = q->feed->samples_played;
 
+        long nt = ct - (q->feed->sample_rate * 3);
         if (nt < 0)
             nt = 0;
 
-        a_set_current_time(q->feed, nt);
+        q->feed->samples_played = nt;
+
         break;
     }
 
-    case ARROW_RIGHT:
+    case ARROW_RIGHT: {
+        long sd = q->feed->data->length / (sizeof(float) * q->feed->channels);
+        long ct = q->feed->samples_played;
 
-    {
-        long d = a_get_duration(q->feed);
-        long ct = a_get_current_time(q->feed);
-        long nt = ct + 1000 * 3;
+        long nt = ct + (q->feed->sample_rate * 3);
 
-        if (nt > d)
-            nt = d;
+        if (nt > sd)
+            nt = sd;
 
-        a_set_current_time(q->feed, nt);
+        q->feed->samples_played = nt;
+
+        // long d = a_get_duration(q->feed);
+        // long ct = a_get_current_time(q->feed);
+        // long nt = ct + 1000 * 3;
+
+        // if (nt > d)
+        //     nt = d;
+
+        // a_set_current_time(q->feed, nt);
         break;
     }
     }
@@ -1193,6 +1202,16 @@ int playback_page(AppContext *app_ctx) {
 
     if (q == NULL)
         return 1;
+
+    if (q->feed) {
+        long duration =
+            q->feed->data->length / (sizeof(float) * q->feed->channels);
+        long current_time = q->feed->samples_played;
+
+        if (q->feed->paused == false && duration == current_time) {
+            pb_q_pause(q);
+        }
+    }
 
     char *song_status = "[]";
     char *song_name = "[]";
@@ -1232,6 +1251,9 @@ int playback_page(AppContext *app_ctx) {
     printf("----------- \n");
     playback_timeline_component(app_ctx);
     printf("----------- \n");
+
+    long t = q->feed->data->length / (sizeof(float) * q->feed->channels);
+    long s = q->feed->samples_played;
 
     Key key = readkey_nb();
     if (no_input(key))

@@ -63,60 +63,29 @@ void data_callback(ma_device *pDevice, void *pOutput, const void *pInput,
                    ma_uint32 frameCount) {
     APlaybackFeed *playback_feed = (APlaybackFeed *)pDevice->pUserData;
 
-    if (playback_feed == NULL || playback_feed->data == NULL ||
-        playback_feed->data->ptr == NULL) {
-        memset(pOutput, 0,
-               frameCount * pDevice->playback.channels * sizeof(float));
-        return;
-    }
-
     float *audio_data = (float *)playback_feed->data->ptr;
 
-    // Calculate the starting sample index
-    size_t startSample =
-        playback_feed->samples_played * pDevice->playback.channels;
-    size_t samplesToCopy = frameCount * pDevice->playback.channels;
+    long total_samples =
+        playback_feed->data->length / (sizeof(float) * playback_feed->channels);
 
-    // Ensure we don't read past the buffer size
-    size_t availableSamples = playback_feed->data->length / sizeof(float);
-    if (startSample >= availableSamples) {
-        // No more data to play, fill buffer with silence
-        memset(pOutput, 0,
-               frameCount * pDevice->playback.channels * sizeof(float));
+    if (total_samples - playback_feed->samples_played <= 0) {
+        memset(pOutput, 0, frameCount * playback_feed->channels);
         return;
     }
 
-    // Adjust samplesToCopy if necessary
-    if (startSample + samplesToCopy > availableSamples) {
-        samplesToCopy = availableSamples - startSample;
+    long samples_left = total_samples - playback_feed->samples_played;
+
+    long copy_frames = frameCount;
+    long copy_dif = samples_left - copy_frames;
+    if (copy_dif < 0) {
+        copy_frames += copy_dif;
     }
 
-    // Copy audio data from playback buffer to output
-    memcpy(pOutput, &audio_data[startSample], samplesToCopy * sizeof(float));
+    memcpy(pOutput,
+           &audio_data[playback_feed->samples_played * playback_feed->channels],
+           copy_frames * playback_feed->channels * sizeof(float));
 
-    // Fill remaining samples with silence if there wasn't enough data
-    if (samplesToCopy < frameCount * pDevice->playback.channels) {
-        a_pause(playback_feed);
-
-        memset((float *)pOutput + samplesToCopy, 0,
-               (frameCount * pDevice->playback.channels - samplesToCopy) *
-                   sizeof(float));
-    }
-
-    float *data = pOutput;
-
-    for (int i = 0; i < frameCount * pDevice->playback.channels; i++) {
-        data[i] *= playback_feed->volume;
-
-        // Optional: Clipping to prevent distortion
-        if (data[i] > 1.0f)
-            data[i] = 1.0f;
-        if (data[i] < -1.0f)
-            data[i] = -1.0f;
-    }
-
-    // Update playback position
-    playback_feed->samples_played += frameCount;
+    playback_feed->samples_played += copy_frames;
 }
 
 T_CODE a_playback(APlaybackFeed *playback_feed) {
@@ -173,8 +142,14 @@ long a_get_current_time(APlaybackFeed *playback_feed) {
 }
 
 long a_get_duration(APlaybackFeed *playback_feed) {
-    float samples_ms =
-        (float)playback_feed->data->samples / (float)playback_feed->sample_rate;
+    double total_samples = (double)(playback_feed->data->length) /
+                           (sizeof(float) * playback_feed->channels);
+
+    float samples_ms = (float)total_samples / (float)playback_feed->sample_rate;
+
+    // float samples_ms =
+    //     (float)playback_feed->data->samples /
+    //     (float)playback_feed->sample_rate;
 
     return (long)(samples_ms * 1000);
 }
