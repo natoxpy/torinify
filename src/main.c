@@ -1062,11 +1062,15 @@ void playback_queue_list_component(AppContext *app_ctx) {
     for (int i = 0; i < q->songs->length; i++) {
         MusicQueue *mq = pb_q_get(q, i);
         char cursor = '-';
+        char *suffix = "";
 
         if (app_ctx->selected == i)
             cursor = '>';
 
-        printf(" %c %s\n", cursor, mq->title);
+        if (q->active == i)
+            suffix = "(playing)";
+
+        printf(" %c %s %s\n", cursor, mq->title, suffix);
     }
 }
 
@@ -1076,7 +1080,7 @@ void playback_volume_component(AppContext *app_ctx) {
     if (q->feed) {
         printf(" volume   :   ");
 
-        int volume = q->feed->volume * 10;
+        int volume = q->volume * 10;
 
         if (volume == 10)
             printf("%d", volume);
@@ -1209,6 +1213,10 @@ int playback_page(AppContext *app_ctx) {
         long current_time = q->feed->samples_played;
 
         if (q->feed->paused == false && duration == current_time) {
+            pb_q_next(q);
+        }
+
+        if (pb_q_is_finished(q) && pb_q_is_last(q)) {
             pb_q_pause(q);
         }
     }
@@ -1290,15 +1298,19 @@ int playback_page(AppContext *app_ctx) {
     }
 
     if (key.ch.standard == '[' && q->feed) {
-        q->feed->volume -= 0.1;
-        if (q->feed->volume < 0)
-            q->feed->volume = 0;
+        pb_q_set_volume(q, q->volume - 0.1);
+
+        // q->feed->volume -= 0.1;
+        // if (q->feed->volume < 0)
+        //     q->feed->volume = 0;
     }
 
     if (key.ch.standard == ']' && q->feed) {
-        q->feed->volume += 0.1;
-        if (q->feed->volume > 1)
-            q->feed->volume = 1;
+        pb_q_set_volume(q, q->volume + 0.1);
+
+        // q->feed->volume += 0.1;
+        // if (q->feed->volume > 1)
+        //     q->feed->volume = 1;
     }
 
     return 0;

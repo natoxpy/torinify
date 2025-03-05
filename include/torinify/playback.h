@@ -17,7 +17,6 @@ typedef struct {
     int active_queue;
     Vec *queues;
     int8_t loopstyle;
-    float volume;
 } PlaybackContext;
 
 typedef struct {
@@ -33,6 +32,7 @@ typedef struct {
     int active;
     APlaybackFeed *feed;
     Vec *songs;
+    float volume;
 } Queue;
 
 T_CODE pb_init(PlaybackContext **pbc);
@@ -44,16 +44,26 @@ void pb_q_free(Queue *q);
 MusicQueue *pb_musicq_alloc();
 void pb_musicq_free(MusicQueue *mq);
 
-/// ===================
-/// ======= NEW =======
-/// ===================
+// ===================
+// ======= NEW =======
+// ===================
 
 Vec *pb_q_all(Queue *q);
 MusicQueue *pb_q_get(Queue *q, int index);
 MusicQueue *pb_q_get_active(Queue *q);
 void pb_q_add(Queue *q, MusicQueue *m);
 void pb_q_remove(Queue *q, int index);
+
 void pb_q_set_active(Queue *q, int index);
+
+void pb_q_set_volume(Queue *q, float volume);
+
+void pb_q_next(Queue *q);
+void pb_q_previous(Queue *q);
+
+bool pb_q_is_last(Queue *q);
+bool pb_q_is_finished(Queue *q);
+
 // void pb_q_clean(Queue *q, MusicQueue *m);
 
 void pb_all_q(PlaybackContext *pbc, Vec *qs);

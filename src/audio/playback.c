@@ -85,6 +85,10 @@ void data_callback(ma_device *pDevice, void *pOutput, const void *pInput,
            &audio_data[playback_feed->samples_played * playback_feed->channels],
            copy_frames * playback_feed->channels * sizeof(float));
 
+    for (int i = 0; i < frameCount * playback_feed->channels; i++) {
+        ((float *)pOutput)[i] *= playback_feed->volume;
+    }
+
     playback_feed->samples_played += copy_frames;
 }
 

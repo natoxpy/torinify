@@ -20,7 +20,6 @@ T_CODE pb_init(PlaybackContext **playback_ctx) {
     }
     pbc->queues = vec_init(sizeof(Queue *));
     pbc->active_queue = UINT32_MAX;
-    pbc->volume = 1;
     *playback_ctx = pbc;
 
     return T_SUCCESS;
@@ -73,6 +72,7 @@ Queue *pb_q_alloc() {
     q->active = UINT32_MAX;
     q->feed = NULL;
     q->songs = vec_init(sizeof(MusicQueue *));
+    q->volume = 1;
 
     return q;
 }
@@ -136,18 +136,28 @@ void pb_q_set_active(Queue *q, int index) {
     pb_q_set_src(q, mq->fullpath);
 }
 
-// void pb_q_clean(Queue *q, MusicQueue *m);
+void pb_q_next(Queue *q) {
+    if (q->active == -1 || q->songs->length - 1 == q->active)
+        return;
 
-// void pb_all_q(PlaybackContext *pbc, Vec *qs);
-// void pb_get_q(PlaybackContext *pbc, int index);
+    pb_q_set_active(q, q->active + 1);
+    pb_q_play(q);
+}
+
+void pb_q_previous(Queue *q) {
+    if (q->active == -1 || q->active == 0)
+        return;
+
+    pb_q_set_active(q, q->active - 1);
+    pb_q_play(q);
+}
+
 void pb_add_q(PlaybackContext *pbc, Queue *q) {
     if (pbc->queues->length == 0)
         pbc->active_queue = 0;
 
     vec_push(pbc->queues, &q);
 };
-// void pb_remove_q(PlaybackContext *pbc, Queue *q);
-// void pb_clean_q(PlaybackContext *pbc);
 
 T_CODE pb_q_set_src(Queue *q, char *filename) {
     uint8_t *data;
@@ -170,6 +180,7 @@ T_CODE pb_q_set_src(Queue *q, char *filename) {
     a_playback(pbfeed);
 
     q->feed = pbfeed;
+    q->feed->volume = q->volume;
 
     return T_SUCCESS;
 }
@@ -197,4 +208,28 @@ T_CODE pb_q_pause(Queue *q) {
 
     a_pause(q->feed);
     return T_SUCCESS;
+}
+
+void pb_q_set_volume(Queue *q, float vol) {
+    float final_vol = vol;
+
+    if (final_vol < 0)
+        final_vol = 0;
+
+    if (final_vol > 1)
+        final_vol = 1;
+
+    if (q->feed)
+        q->feed->volume = final_vol;
+    q->volume = final_vol;
+}
+
+bool pb_q_is_last(Queue *q) { return q->active == q->songs->length - 1; }
+bool pb_q_is_finished(Queue *q) {
+    if (q->feed == NULL)
+        return false;
+
+    long duration = q->feed->data->length / (sizeof(float) * q->feed->channels);
+
+    return duration == q->feed->samples_played;
 }
