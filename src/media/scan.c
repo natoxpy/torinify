@@ -1,4 +1,6 @@
 #include "crossplatform/directories.h"
+#include "db/exec/music_table.h"
+#include "db/migrations.h"
 #include <media/scan.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -78,11 +80,11 @@ FileState *file_state_init() {
     FileState *fs = malloc(sizeof(FileState));
 
     fs->state = FILE_STATE_FOUND;
-    fs->filepath = 0;
-    fs->filename = 0;
-    fs->metadata.name = 0;
-    fs->metadata.artist = 0;
-    fs->metadata.album = 0;
+    fs->filepath = NULL;
+    fs->filename = NULL;
+    fs->metadata.name = NULL;
+    fs->metadata.artist = NULL;
+    fs->metadata.album = NULL;
 
     return fs;
 }
@@ -100,93 +102,6 @@ void file_state_vec_free(Vec *files) {
 
     vec_free(files);
 }
-
-/*
-void recursive_readdir(Vec *sources, Vec **out) {
-    Vec *files = vec_init(sizeof(FileState *));
-
-    for (int i = 0; i < sources->length; i++) {
-        char *path = vec_get_ref(sources, i);
-        Directory *dir;
-        struct dirent *entry;
-
-        Vec *dirs = vec_init(sizeof(DIR *));
-        Vec *paths = vec_init(sizeof(char *));
-
-        dir = opendir(path);
-
-        vec_push(dirs, &dir);
-        vec_push(paths, &path);
-
-        while (1) {
-
-            while ((entry = readdir(dir)) != NULL) {
-                if (entry->d_name[0] == '.')
-                    continue;
-
-                char np[2048];
-                char *r = NULL;
-
-                for (int i = 0; i < paths->length; i++) {
-                    if (r == NULL) {
-                        sprintf(np, "%s", (char *)vec_get_ref(paths, i));
-
-                    } else {
-                        sprintf(np, "%s/%s", r, (char *)vec_get_ref(paths, i));
-                    }
-
-                    r = np;
-                }
-
-                sprintf(np, "%s/%s", np, entry->d_name);
-
-                if (entry->d_type == DT_DIR) {
-                    dir = opendir(np);
-
-                    if (dir != NULL) {
-                        vec_push(dirs, &dir);
-                        char *name = entry->d_name;
-                        vec_push(paths, &name);
-                    } else {
-                        dir = vec_get_ref(dirs, dirs->length - 1);
-                    }
-                }
-                if (entry->d_type == DT_REG) {
-                    if (supported_music_file(np)) {
-                        char *name = strdup(np);
-
-                        FileState *fs = file_state_init();
-                        fs->filepath = name;
-                        fs->filename = strdup(entry->d_name);
-
-                        vec_push(files, &fs);
-                    }
-
-                    continue;
-                }
-            }
-
-            if (paths->length <= 1)
-                break;
-            else {
-                char *s = vec_pop_ref(paths);
-                DIR *top = vec_pop_ref(dirs);
-                closedir(top);
-                dir = vec_get_ref(dirs, dirs->length - 1);
-            }
-        }
-
-        for (int i = 0; i < dirs->length; i++) {
-            closedir(vec_get_ref(dirs, i));
-        }
-
-        vec_free(dirs);
-        vec_free(paths);
-    }
-
-    *out = files;
-}
-*/
 
 void recursive_readdir(Vec *sources, Vec **out) {
     Vec *files = vec_init(sizeof(FileState *));
@@ -305,9 +220,17 @@ int scan_thread(void *arg) {
         scan_file(file_state->filepath, &mc);
 
         file_state->metadata = mc;
+        file_state->state = FILE_STATE_ACCEPTED;
 
         thread_ctx->working_index = i;
         (*thread_ctx->processed)++;
+
+        MusicRow *row;
+        if (DB_query_music_single_by_fullpath(
+                thread_ctx->db, file_state->filepath, &row) == TDB_SUCCESS) {
+            file_state->state = FILE_STATE_ALREADY_IN;
+            dbt_music_row_free(row);
+        }
 
         mtx_unlock(thread_ctx->mutex);
     }
@@ -359,6 +282,7 @@ ScanContext *start_scan(sqlite3 *db, Vec *sources, int threads) {
         ctx->mutex = &scan_ctx->mutex;
         ctx->working_index = 0;
         ctx->processed = &scan_ctx->processed;
+        ctx->db = db;
 
         thrd_t thread;
         thrd_create(&thread, scan_thread, ctx);

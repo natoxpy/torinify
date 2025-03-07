@@ -30,6 +30,7 @@ typedef struct {
     mtx_t *mutex;
     uint32_t working_index;
     uint32_t *processed;
+    sqlite3 *db;
 } ThreadContext;
 
 typedef struct {

@@ -1,5 +1,5 @@
-#include "media/scan.h"
 #include "torinify/playback.h"
+#include "torinify/scanner.h"
 #include "utils/generic_vec.h"
 #include <db/exec.h>
 #include <db/exec/music_table.h>
@@ -9,6 +9,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include <threads.h>
 #include <torinify/core.h>
 #include <torinify/search_engine.h>
 
@@ -566,8 +567,41 @@ void app_cleanup() {
     return;
 }
 
-int main() {
+int handle_queue_feed_loop(void *_) {
+    Queue *q = get_core_queue();
 
+    while (1) {
+        usleep(25 * 1000);
+
+        if (q->feed) {
+            long duration =
+                q->feed->data->length / (sizeof(float) * q->feed->channels);
+            long current_time = q->feed->samples_played;
+
+            if (!pb_q_is_paused(q) && pb_q_is_finished(q)) {
+                switch (q->loopstyle) {
+                case P_LOOP_NONE:
+                    pb_q_pause(q);
+                    break;
+                case P_LOOP_SINGLE:
+                    pb_q_set_current_time(q, 0);
+                    break;
+                case P_LOOP_QUEUE:
+                    pb_q_next(q);
+                    break;
+                }
+            }
+
+            if (pb_q_is_finished(q) && pb_q_is_last(q)) {
+                pb_q_pause(q);
+            }
+        }
+    }
+
+    return 0;
+}
+
+int main() {
 #ifdef _WIN32
     int _ = freopen("null", "w", stderr);
 #elif __unix__
@@ -587,7 +621,6 @@ int main() {
 
     while (1) {
         clean_screen();
-
         printf("torinify - ");
 
         if (app_ctx.logmsg.len != 0) {
@@ -672,6 +705,8 @@ int home_page() {
 /// === SEARCH PAGE ===
 
 int search_page(AppContext *app) {
+    printf("Search");
+
     if (app->search_results != NULL && app->search_results->length == 0)
         printf("\n[Esc] Return\n");
     else
@@ -865,7 +900,6 @@ int media_scan_media_subpage(AppContext *app_ctx) {
     } while (1);
 
     Vec *sources;
-    Vec *sources_for_scan = vec_init(sizeof(char *));
     DB_query_source_all(tgc->sqlite3, &sources);
 
     if (sources->length == 0) {
@@ -874,37 +908,33 @@ int media_scan_media_subpage(AppContext *app_ctx) {
     }
 
     MediaSourceRow *row = vec_get_ref(sources, app_ctx->selected);
-    vec_push(sources_for_scan, &row->path);
 
-    clean_screen();
+    ScannerContext *scanner_ctx =
+        sc_scan_start_single_root(tgc->sqlite3, row->id);
 
-    int threads = 1;
-    ScanContext *scan_ctx = start_scan(tgc->sqlite3, sources_for_scan, threads);
+    dbt_source_vec_rows_free(sources);
 
-    int offset = 0;
-    int width;
+    int ret, width, final_rerender = 1;
 
-    int final_rerender = 0;
-    int ret = 0;
-
-    while ((ret = lock_scan(scan_ctx)) == 0 || final_rerender) {
-        if (ret == 1)
+    while ((ret = sc_lock_scan(scanner_ctx)) == 0 || final_rerender) {
+        if (ret != 0)
             final_rerender = 0;
 
         clean_screen();
         oss_get_terminal_size(&width, NULL);
 
-        double dk =
-            (double)scan_ctx->processed / (double)scan_ctx->data->length;
+        float dk = (float)scanner_ctx->scan_ctx->processed /
+                   scanner_ctx->scan_ctx->data->length;
 
         char buff[255];
-        sprintf(buff, "(%d / %d)", scan_ctx->processed, scan_ctx->data->length);
+        sprintf(buff, "(%d / %d)", scanner_ctx->scan_ctx->processed,
+                scanner_ctx->scan_ctx->data->length);
         printf("%s[", buff);
 
         int uwidth = width - (2 + strlen(buff));
 
         for (int i = 0; i < uwidth; i++) {
-            double bk = (double)i / (double)uwidth;
+            float bk = (float)i / uwidth;
 
             if (bk >= dk)
                 printf(" ");
@@ -913,16 +943,11 @@ int media_scan_media_subpage(AppContext *app_ctx) {
         }
 
         printf("]\n");
-        unlock_scan(scan_ctx);
-#ifdef _WIN32
-        Sleep(1);
-#endif
+
+        sc_unlock_scan(scanner_ctx);
     }
 
-    finalize_scan(scan_ctx);
-
-    dbt_source_vec_rows_free(sources);
-    vec_free(sources_for_scan);
+    sc_scan_context_free_and_commit(scanner_ctx);
 
     printf("Press any key to continue\n");
 
@@ -1186,30 +1211,6 @@ int playback_page(AppContext *app_ctx) {
 
     if (q == NULL)
         return 1;
-
-    if (q->feed) {
-        long duration =
-            q->feed->data->length / (sizeof(float) * q->feed->channels);
-        long current_time = q->feed->samples_played;
-
-        if (!pb_q_is_paused(q) && pb_q_is_finished(q)) {
-            switch (q->loopstyle) {
-            case P_LOOP_NONE:
-                pb_q_pause(q);
-                break;
-            case P_LOOP_SINGLE:
-                pb_q_set_current_time(q, 0);
-                break;
-            case P_LOOP_QUEUE:
-                pb_q_next(q);
-                break;
-            }
-        }
-
-        if (pb_q_is_finished(q) && pb_q_is_last(q)) {
-            pb_q_pause(q);
-        }
-    }
 
     char *song_status = "[]";
     char *song_name = "[]";

@@ -9,7 +9,53 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <threads.h>
 #include <torinify/playback.h>
+
+int thread_playback_handle(void *args) {
+    PlaybackContext *ctx = args;
+    Queue *q = NULL;
+
+    while (q == NULL) {
+        thrd_sleep(&(struct timespec){.tv_nsec = 100000000}, NULL);
+
+        if (ctx->active_queue == -1)
+            continue;
+
+        q = vec_get_ref(ctx->queues, ctx->active_queue);
+    }
+
+    while (ctx->thread_running) {
+
+        thrd_sleep(&(struct timespec){.tv_nsec = 100000000}, NULL);
+
+        if (q->feed) {
+            long duration =
+                q->feed->data->length / (sizeof(float) * q->feed->channels);
+            long current_time = q->feed->samples_played;
+
+            if (!pb_q_is_paused(q) && pb_q_is_finished(q)) {
+                switch (q->loopstyle) {
+                case P_LOOP_NONE:
+                    pb_q_pause(q);
+                    break;
+                case P_LOOP_SINGLE:
+                    pb_q_set_current_time(q, 0);
+                    break;
+                case P_LOOP_QUEUE:
+                    pb_q_next(q);
+                    break;
+                }
+            }
+
+            if (pb_q_is_finished(q) && pb_q_is_last(q)) {
+                pb_q_pause(q);
+            }
+        }
+    }
+
+    return 0;
+}
 
 T_CODE pb_init(PlaybackContext **playback_ctx) {
     PlaybackContext *pbc = malloc(sizeof(PlaybackContext));
@@ -19,7 +65,11 @@ T_CODE pb_init(PlaybackContext **playback_ctx) {
         return T_FAIL;
     }
     pbc->queues = vec_init(sizeof(Queue *));
-    pbc->active_queue = UINT32_MAX;
+    pbc->active_queue = -1;
+    pbc->thread_running = true;
+
+    thrd_create(&pbc->thread, thread_playback_handle, pbc);
+
     *playback_ctx = pbc;
 
     return T_SUCCESS;
@@ -28,6 +78,10 @@ T_CODE pb_init(PlaybackContext **playback_ctx) {
 void pb_free(PlaybackContext *pbc) {
     if (pbc == NULL)
         return;
+
+    pbc->thread_running = false;
+
+    thrd_join(pbc->thread, NULL);
 
     for (int i = 0; i < pbc->queues->length; i++) {
         Queue *q = vec_get_ref(pbc->queues, i);
@@ -69,7 +123,7 @@ Queue *pb_q_alloc() {
     if (q == NULL)
         return NULL;
 
-    q->active = UINT32_MAX;
+    q->active = -1;
     q->feed = NULL;
     q->songs = vec_init(sizeof(MusicQueue *));
     q->volume = 1;

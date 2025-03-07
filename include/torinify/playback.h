@@ -5,6 +5,7 @@
 #include <errors/errors.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <threads.h>
 #include <utils/generic_vec.h>
 // typedef struct PlaybackContext PlaybackContext;
 
@@ -16,6 +17,8 @@
 typedef struct {
     int active_queue;
     Vec *queues;
+    thrd_t thread;
+    bool thread_running;
 } PlaybackContext;
 
 typedef struct {

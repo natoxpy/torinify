@@ -2,10 +2,13 @@
 #define _TORINIFY_CORE_H
 #include <errors/errors.h>
 #include <sqlite3.h>
+#include <threads.h>
 #include <torinify/playback.h>
+#include <torinify/scanner.h>
 #include <utils/generic_vec.h>
 
 typedef struct {
+    ScannerContext *scanner;
     PlaybackContext *playback;
     sqlite3 *sqlite3;
 } TorinifyContext;

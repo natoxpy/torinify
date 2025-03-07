@@ -46,7 +46,6 @@ clean:
     return ret;
 }
 
-/// @todo implement
 TDB_CODE DB_query_music_single(sqlite3 *db, int id, MusicRow **out_music_row) {
     int ret;
     sqlite3_stmt *stmt = NULL;
@@ -55,6 +54,31 @@ TDB_CODE DB_query_music_single(sqlite3 *db, int id, MusicRow **out_music_row) {
         goto clean;
 
     if ((ret = dbh_bind_array(db, stmt, (BindValue[]){BIND_INT(id)}, 1)) !=
+        TDB_SUCCESS)
+        goto clean;
+
+    MusicRow *row = NULL;
+    if ((ret = dbh_sql_execute_single(db, stmt, (void *)&row, collect_music)) !=
+        TDB_SUCCESS)
+        goto clean;
+
+    *out_music_row = row;
+clean:
+    if (stmt)
+        sqlite3_finalize(stmt);
+
+    return ret;
+}
+
+TDB_CODE DB_query_music_single_by_fullpath(sqlite3 *db, char *path,
+                                           MusicRow **out_music_row) {
+    int ret;
+    sqlite3_stmt *stmt = NULL;
+
+    if ((ret = dbh_prepare(db, DB_SQL_MUSIC_SELECT_WHERE_FULLPATH, &stmt)))
+        goto clean;
+
+    if ((ret = dbh_bind_array(db, stmt, (BindValue[]){BIND_STR(path)}, 1)) !=
         TDB_SUCCESS)
         goto clean;
 

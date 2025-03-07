@@ -52,6 +52,8 @@ T_CODE tf_sqlite3_migrations() {
         return T_FAIL;
 }
 
+void thread_handle_queue(void *args) {}
+
 /// Initiates Torinify Global Context (`tgc`)
 T_CODE tf_init() {
     int ret = 0;
