@@ -50,17 +50,6 @@ typedef struct {
 TDB_CODE dbh_bind_array(sqlite3 *db, sqlite3_stmt *stmt, BindValue *arr,
                         int bind_length);
 
-// Vec *dbh_bind_init();
-//
-// void dbh_bind_push_int(Vec *val, int num);
-// void dbh_bind_push_str(Vec *val, char *text);
-// void dbh_bind_push_null(Vec *val);
-//
-// TDB_CODE dbh_bind_vec(sqlite3 *db, sqlite3_stmt *stmt, Vec *vec);
-
-// TDB_CODE dbh_sql_execute(sqlite3 *db, sqlite3_stmt *stmt, Vec *out_vec,
-//                          TDB_CODE (*collect)(sqlite3_stmt *, Vec *));
-
 TDB_CODE dbh_sql_execute(sqlite3 *db, sqlite3_stmt *stmt, Vec *out_vec,
                          void *(*collect)(sqlite3_stmt *));
 

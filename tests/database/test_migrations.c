@@ -57,6 +57,24 @@ int contains_expected(char **expects, size_t expect_size, Vec *vec) {
     return match_expectation;
 }
 
+char *_migrations_expects[] = {
+    ".migrations",     "Music",          "Album",          "Metadata",
+    "MediaSource",     "Artist",         "AlbumArtists",   "Genre",
+    "MetadataArtists", "MetadataGenres", "Music",          "MusicAltTitle",
+    "ArtistAltTitle",  "AlbumAltTitle",  "AlternativeName"};
+
+bool _migration_contains_expected_tables(sqlite3 *db) {
+    Vec *tables = get_tables(db);
+
+    int tables_match_expectation =
+        contains_expected(_migrations_expects,
+                          sizeof(_migrations_expects) / sizeof(char *), tables);
+
+    free_tables(tables);
+
+    return tables_match_expectation;
+}
+
 void test_run_migrations(sqlite3 *db, bool *passed, char **name, char **log) {
     *name = "Migrations";
 
@@ -66,16 +84,7 @@ void test_run_migrations(sqlite3 *db, bool *passed, char **name, char **log) {
         return;
     }
 
-    char *expects[] = {".migrations", "Music", "Album", "Metadata",
-                       "MediaSource"};
-    Vec *tables = get_tables(db);
-
-    int tables_match_expectation =
-        contains_expected(expects, sizeof(expects) / sizeof(char *), tables);
-
-    free_tables(tables);
-
-    if (tables_match_expectation == 1)
+    if (_migration_contains_expected_tables(db))
         *passed = true;
     else {
         *passed = false;
@@ -83,9 +92,10 @@ void test_run_migrations(sqlite3 *db, bool *passed, char **name, char **log) {
     }
 }
 
-void test_run_migrations_after_migration(sqlite3 *db, bool *passed, char **name,
-                                         char **log) {
-    *name = "Second Migrations Pass";
+// makes sure that after the first migration you can migrate again without
+// errors
+void test_run_migration_2(sqlite3 *db, bool *passed, char **name, char **log) {
+    *name = "Migrations x2";
 
     int ret = migrate_database(db);
     if (ret != TDB_SUCCESS) {
@@ -94,5 +104,10 @@ void test_run_migrations_after_migration(sqlite3 *db, bool *passed, char **name,
         return;
     }
 
-    *passed = true;
+    if (_migration_contains_expected_tables(db))
+        *passed = true;
+    else {
+        *passed = false;
+        *log = "Tables expected to be created were not created";
+    }
 }

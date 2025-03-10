@@ -1,6 +1,10 @@
+#include "common.c"
+#include "database/test_album.c"
+#include "database/test_artist.c"
 #include "database/test_migrations.c"
-#include "database/test_music_table.c"
-#include "db/migrations.h"
+#include "database/test_music.c"
+#include "database/test_music_altname.c"
+#include "errors/errors.h"
 #include <sqlite3.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -11,15 +15,27 @@ typedef void (*db_testfn_t)(sqlite3 *, bool *, char **, char **);
 void db_tests() {
     sqlite3 *db;
     sqlite3_open(":memory:", &db);
-    printf(" - Database \n");
+    printf(" - Database \r");
 
     db_testfn_t tests[] = {
-        &test_run_migrations,  &test_run_migrations_after_migration,
-        &test_add_music,       &test_query_music,
-        &test_remove_music,    &test_insert_many_music_with_transaction,
-        &test_query_all_music, &test_remove_all_music};
+        &test_run_migrations,       &test_run_migration_2,
+        &test_music_get_1,          &test_music_add,
+        &test_music_get_2,          &test_music_get_3,
+        &test_music_update,         &test_music_add_altname,
+        &test_music_get_altname,    &test_music_get_all_altname,
+        &test_music_delete_altname, &test_music_delete,
+        &test_album_get_1,          &test_album_add,
+        &test_album_get_2,          &test_album_get_3,
+        &test_album_update,         &test_album_delete,
+        &test_artist_get_1,         &test_artist_add,
+        &test_artist_get_2,         &test_artist_get_3,
+        &test_artist_update,        &test_artist_delete};
 
-    for (int i = 0; i < sizeof(tests) / sizeof(db_testfn_t); i++) {
+    bool anyfails = false;
+
+    int total_tests = sizeof(tests) / sizeof(db_testfn_t);
+
+    for (int i = 0; i < total_tests; i++) {
         db_testfn_t fn_tr = tests[i];
 
         bool passed = false;
@@ -27,13 +43,28 @@ void db_tests() {
         char *log = "";
         fn_tr(db, &passed, &name, &log);
         char *passed_txt = "\033[32mpassed\033[0m";
-        if (!passed)
+
+        if (!passed) {
+            if (anyfails == false) {
+                printf(" - Database \033[31mfailed\033[0m \n");
+            }
+
+            anyfails = true;
             passed_txt = "\033[31mfailed\033[0m";
 
-        printf("  - (%s) [%s] %s  \n", passed_txt, name, log);
+            if (get_log_index() != 0) {
+                passed_txt = "\033[41mfatal\033[0m";
+            }
+
+            printf("  - (%s) [%s] %s  \n", passed_txt, name, log);
+        }
+
+        error_print_all_cb(_print_err);
     }
 
-    error_print_all();
+    if (!anyfails)
+        printf(" - Database \033[32mpassed\033[0m all %d tests \n",
+               total_tests);
 
     sqlite3_close(db);
 }

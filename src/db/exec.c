@@ -1,3 +1,4 @@
+#include "db/exec/mediasource_table.h"
 #include <db/exec.h>
 #include <db/helpers.h>
 #include <db/sql.h>

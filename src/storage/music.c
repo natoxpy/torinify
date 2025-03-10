@@ -1,26 +1,17 @@
 #include "storage/music.h"
-#include "db/exec/music_table.h"
-#include "db/sql.h"
-#include "db/tables.h"
+#include "db/helpers.h"
+#include "db/sql_macros.h"
 #include "errors/errors.h"
-#include "storage/album.h"
-#include "utils/generic_vec.h"
 #include <sqlite3.h>
-#include <stdio.h>
-#include <stdlib.h>
 
 Music *s_music_alloc() {
     Music *music = malloc(sizeof(Music));
+    if (music == NULL)
+        return music;
 
-    if (music == NULL) {
-        error_log("Could not allocate enough memory for Music");
-        return NULL;
-    }
-
-    music->id = 0;
-    music->path = "";
-    music->title = "";
-    music->album = NULL;
+    music->id = -1;
+    music->title = NULL;
+    music->fullpath = NULL;
 
     return music;
 }
@@ -29,97 +20,122 @@ void s_music_free(Music *music) {
     if (music == NULL)
         return;
 
-    if (music->album)
-        s_album_free(music->album);
-
-    if (music->path)
-        free(music->path);
-
     if (music->title)
         free(music->title);
+
+    if (music->fullpath)
+        free(music->fullpath);
 
     free(music);
 }
 
-T_CODE s_music_get(sqlite3 *db, Music **music_out, MusicQuery query) {
-    MusicRow *music_row;
-
-    if (query.by == S_MUSIC_QUERY_BY_ID)
-        DB_query_music_single(db, query.value.id, &music_row);
-    // else if (query.by == S_MUSIC_QUERY_BY_TITLE)
-    //     DB_query_music_single(db, &music_row,
-    //                           (SQLQuery){.by = DB_QUERY_BY_FTS5_TITLE,
-    //                                      {.title = query.value.title}});
-    else
-        return T_FAIL;
-
-    if (music_row == NULL)
-        goto end;
-
-    Music *music = s_music_alloc();
-
-    music->id = music_row->id;
-    music->path = music_row->fullpath;
-    music->title = music_row->title;
-
-    music_row->fullpath = NULL;
-    music_row->title = NULL;
-    dbt_music_row_free(music_row);
-
-    *music_out = music;
-
-end:
-    return T_SUCCESS;
-}
-
-T_CODE s_music_get_all(sqlite3 *db, Vec **out_musics) {
-    int ret = T_SUCCESS;
-    Vec *musics = vec_init(sizeof(Music *));
-
-    Vec *music_rows = NULL;
-    if (DB_query_music_all(db, &music_rows) != TDB_SUCCESS) {
-        ret = T_FAIL;
-        goto end;
-    }
-
-    if (music_rows == NULL)
-        goto end;
-
-    for (int i = 0; i < music_rows->length; i++) {
-        MusicRow *row = vec_get_ref(music_rows, i);
-        Music *music = s_music_alloc();
-
-        music->id = row->id;
-        music->title = row->title;
-        music->path = row->fullpath;
-
-        vec_push(musics, &music);
-
-        music->title = NULL;
-        music->path = NULL;
-        row->title = NULL;
-        row->fullpath = NULL;
-
-        s_music_free(music);
-    }
-
-    *out_musics = musics;
-end:
-    vec_free(music_rows);
-    return ret;
-}
-
-void s_vec_music_free(Vec *musics) {
+void s_music_vec_free(Vec *musics) {
     if (musics == NULL)
         return;
 
-    if (musics->data) {
-        for (int i = 0; i < musics->length; i++) {
-            Music *music = vec_get(musics, i);
-            free(music->path);
-            free(music->title);
-        }
+    for (int i = 0; i < musics->length; i++) {
+        s_music_free(vec_get_ref(musics, i));
     }
 
     vec_free(musics);
+}
+
+void *s_music_collect(sqlite3_stmt *stmt) {
+    Music *row = s_music_alloc();
+
+    row->id = dbh_get_column_int(stmt, 0);
+    row->title = dbh_get_column_text(stmt, 1);
+    row->fullpath = dbh_get_column_text(stmt, 2);
+
+    return row;
+}
+
+TDB_CODE s_music_add(sqlite3 *db, Music *music) {
+    Metadata mt = {.id = -1, .year = "0000-00-00"};
+    int _ret = s_metadata_add(db, &mt);
+
+    if (mt.id == -1 || _ret != TDB_SUCCESS) {
+        error_log("Failed to add metadata row");
+        return TDB_FAIL;
+    }
+
+    SQL_GENERIC_ADD_W_LAST_INSERT(
+        SQL_INSERT(MUSIC_TABLE, "title,fullpath,metadata_id", "?,?,?"),
+        SQL_BINDS(BIND_STR(music->title), BIND_STR(music->fullpath),
+                  BIND_INT(mt.id)),
+        &music->id);
+}
+
+TDB_CODE s_music_get(sqlite3 *db, int music_id, Music **music) {
+    SQL_GENERIC_GET(
+        SQL_SELECT(MUSIC_TABLE, "id,title,fullpath", "WHERE", "id = ?"),
+        SQL_BINDS(BIND_INT(music_id)), music, s_music_collect);
+}
+
+TDB_CODE s_music_get_all(sqlite3 *db, Vec **musics){
+    SQL_GENERIC_GET_ALL(SQL_SELECT(MUSIC_TABLE, "id,title,fullpath", "", ""),
+                        musics, s_music_collect, Music)}
+
+TDB_CODE s_music_delete(sqlite3 *db, int id){
+    SQL_GENERIC_DELETE(SQL_DELETE(MUSIC_TABLE, "WHERE", "id = ?"),
+                       SQL_BINDS(BIND_INT(id)))}
+
+TDB_CODE s_music_update_title(sqlite3 *db, int id, char *title) {
+    char *sql = SQL_UPDATE(MUSIC_TABLE, "title = ?", "WHERE", "id = ?");
+    SQL_GENERIC_UPDATE(sql, SQL_BINDS(BIND_STR(title), BIND_INT(id)))
+}
+
+TDB_CODE s_music_update_fullpath(sqlite3 *db, int id, char *fullpath) {
+    char *sql = SQL_UPDATE(MUSIC_TABLE, "fullpath = ?", "WHERE", "id = ?");
+    SQL_GENERIC_UPDATE(sql, SQL_BINDS(BIND_STR(fullpath), BIND_INT(id)))
+}
+
+TDB_CODE s_music_update_source(sqlite3 *db, int music_id, int source_id) {
+    char *sql = SQL_UPDATE(MUSIC_TABLE, "source_id = ?", "WHERE", "id = ?");
+    SQL_GENERIC_UPDATE(sql, SQL_BINDS(BIND_INT(source_id), BIND_INT(music_id)))
+}
+
+// ======
+// ALTERNATIVE_NAME RELATIONSHIP MANY TO MANY
+// ======
+
+TDB_CODE s_music_add_alt_name(sqlite3 *db, int music_id,
+                              AlternativeName *altname) {
+    int _ret;
+    if ((_ret = s_altname_add(db, altname)) != TDB_SUCCESS)
+        return _ret;
+
+    char *sql = SQL_INSERT(MUSIC_ALTNAME_MTM_TABLE, "music_id,title_id", "?,?");
+
+    SQL_GENERIC_ADD(sql, SQL_BINDS(BIND_INT(music_id), BIND_INT(altname->id)));
+}
+
+TDB_CODE s_music_get_alt_name_by_language(sqlite3 *db, int music_id,
+                                          char *language,
+                                          AlternativeName **altname) {
+    char *s = SQL_SELECT(ALTERNATIVE_NAME_TABLE, "id,title,language",
+                         "WHERE language = ? AND id in",
+                         SQL_INNER_SELECT(MUSIC_ALTNAME_MTM_TABLE, "id",
+                                          "WHERE", "music_id = ?"));
+
+    SQL_GENERIC_GET(s, SQL_BINDS(BIND_STR(language), BIND_INT(music_id)),
+                    altname, s_altname_collect)
+}
+
+TDB_CODE s_music_get_all_alt_names(sqlite3 *db, int music_id, Vec **altnames) {
+    char *s =
+        SQL_SELECT(ALTERNATIVE_NAME_TABLE, "id,title,language", "WHERE id IN",
+                   SQL_INNER_SELECT(MUSIC_ALTNAME_MTM_TABLE, "title_id",
+                                    "WHERE", "music_id = ?"));
+
+    SQL_GENERIC_GET_ALL_WBINDS(s, SQL_BINDS(BIND_INT(music_id)), altnames,
+                               s_altname_collect, AlternativeName)
+}
+
+TDB_CODE s_music_delete_alt_name(sqlite3 *db, int music_id, int altname_id) {
+    char *s = SQL_DELETE(ALTERNATIVE_NAME_TABLE, "WHERE id = ? AND id IN",
+                         SQL_INNER_SELECT(MUSIC_ALTNAME_MTM_TABLE, "id",
+                                          "WHERE", "music_id = ?"));
+
+    SQL_GENERIC_DELETE(s, SQL_BINDS(BIND_INT(altname_id), BIND_INT(music_id)));
 }

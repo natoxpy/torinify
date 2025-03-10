@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 TDB_CODE check_migration_database_exists(sqlite3 *db, bool *found) {
     int ret = TDB_SUCCESS;
@@ -156,6 +157,8 @@ TDB_CODE migrate_database(sqlite3 *db) {
     }
 
     char *sqls[] = {(char *)_sql_one_init};
+    int sqls_len[] = {_sql_one_init_len};
+
     int current_index = 0;
     if ((ret = get_migration_index(db, &current_index)) != TDB_SUCCESS) {
         error_log("Failed to get migration index");
@@ -164,11 +167,20 @@ TDB_CODE migrate_database(sqlite3 *db) {
 
     for (int i = current_index; i < sizeof(sqls) / sizeof(char *); i++) {
         char *sql = sqls[i];
+        int sql_len = sqls_len[i];
+        sql[sql_len - 1] = '\0';
 
-        if (sqlite3_exec(db, sql, NULL, NULL, NULL) != SQLITE_OK) {
-            error_log("Failed to execute migration sql #%d", i);
+        char *err;
+        if (sqlite3_exec(db, sql, NULL, NULL, &err) != SQLITE_OK) {
+            error_log(
+                "Failed to execute migration sql #%d, possible cause \"%s\"", i,
+                err);
+
+            free(err);
             goto clean;
         }
+
+        free(err);
 
         if ((ret = update_migration_index(db, i + 1)) != TDB_SUCCESS) {
             error_log("Failed to update migration index");

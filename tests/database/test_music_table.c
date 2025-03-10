@@ -1,5 +1,5 @@
-#include "db/exec/music_table.h"
 #include "db/exec/metadata_table.h"
+#include "db/exec/music_table.h"
 #include "db/helpers.h"
 #include "db/tables.h"
 #include "errors/errors.h"
@@ -206,6 +206,12 @@ void test_query_all_music(sqlite3 *db, bool *passed, char **name, char **log) {
     Vec *musics;
     int ret = DB_query_music_all(db, &musics);
 
+    if (ret != TDB_SUCCESS) {
+        *passed = false;
+        *log = "DB_query_music_all returned something other than TDB_SUCCESS";
+        return;
+    }
+
     char *expected_arr[] = {"Song 1", "Song 2", "Song 3"};
 
     bool found_all_expected = true;
@@ -248,6 +254,7 @@ void test_remove_all_music(sqlite3 *db, bool *passed, char **name, char **log) {
     int ret = DB_query_music_all(db, &musics);
     if (ret != TDB_SUCCESS) {
         *passed = false;
+        *log = "DB_query_music_all returned something other than TDB_SUCCESS";
         return;
     }
 

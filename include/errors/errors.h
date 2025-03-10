@@ -21,14 +21,16 @@ typedef enum {
 #define MAXLOG_LENGTH 256
 #define MAX_LOG_ENTRIES 16
 
-static char log_buffer[MAX_LOG_ENTRIES][MAXLOG_LENGTH];
-static int log_index = 0;
+static char LOG_BUFFER[MAX_LOG_ENTRIES][MAXLOG_LENGTH];
+static int LOG_INDEX = 0;
 
 void error_log(const char *fmt, ...);
 char *error_get_log();
 
 void error_print_log();
 void error_print_all();
+void error_print_all_cb(void(cb)(char *));
+int get_log_index();
 
 #endif
 

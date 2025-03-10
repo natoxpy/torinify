@@ -79,7 +79,9 @@ void sc_scan_context_free_and_commit(ScannerContext *ctx) {
         FileState *file_state = vec_get_ref(ctx->scan_ctx->data, i);
 
         if (file_state->state == FILE_STATE_ACCEPTED) {
-            printf("Accepted %s\n", file_state->filename);
+            printf("Accepted filename: %s, music: %s, album: %s, artist: %s\n",
+                   file_state->filename, file_state->metadata.name,
+                   file_state->metadata.album, file_state->metadata.artist);
         }
     }
 
