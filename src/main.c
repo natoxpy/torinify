@@ -698,6 +698,7 @@ int home_page() {
     Key key = readkey();
     if (is_esc(key)) {
         bool confirm_exit = false;
+
         while (confirm_exit == false) {
             printf("Exit (y)/n?\n");
             Key confirm = readkey();
@@ -707,7 +708,11 @@ int home_page() {
             if (confirm_exit == false)
                 confirm_exit = confirm.keytype == KEY_STANDARD &&
                                confirm.ch.standard == 'y';
+
+            if (confirm.keytype == KEY_STANDARD && confirm.ch.standard == 'n')
+                return 0;
         }
+
         return -1;
     }
 
