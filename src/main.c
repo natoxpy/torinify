@@ -12,6 +12,14 @@
 #include <torinify/core.h>
 #include <torinify/search_engine.h>
 
+size_t count_utf8_code_points(const char *s) {
+    size_t count = 0;
+    while (*s) {
+        count += (*s++ & 0xC0) != 0x80;
+    }
+    return count;
+}
+
 #ifndef _ENGINE_OS_SPECIFIC_MAIN_C
 #define _ENGINE_OS_SPECIFIC_MAIN_C
 
@@ -640,7 +648,7 @@ int main() {
             break;
 
         case 3:
-            redirect_to = discography_page(&app_ctx);
+            redirect_to = playback_page(&app_ctx);
             break;
 
         case 4:
@@ -649,7 +657,7 @@ int main() {
             break;
 
         case 5:
-            redirect_to = playback_page(&app_ctx);
+            redirect_to = discography_page(&app_ctx);
             break;
 
         default:
@@ -683,13 +691,25 @@ int main() {
 int home_page() {
     printf("[Esc] Exit\n");
     printf("[1] Search\n");
-    printf("[2] Discography\n");
+    printf("[2] Playback\n");
     printf("[3] Scan\n");
-    printf("[4] Playback\n");
+    printf("[4] Discography\n");
 
     Key key = readkey();
-    if (is_esc(key))
+    if (is_esc(key)) {
+        bool confirm_exit = false;
+        while (confirm_exit == false) {
+            printf("Exit (y)/n?\n");
+            Key confirm = readkey();
+
+            confirm_exit = is_enter(confirm);
+
+            if (confirm_exit == false)
+                confirm_exit = confirm.keytype == KEY_STANDARD &&
+                               confirm.ch.standard == 'y';
+        }
         return -1;
+    }
 
     if (key.keytype == KEY_STANDARD) {
         switch (key.ch.standard) {
@@ -723,7 +743,9 @@ int search_page(AppContext *app) {
 
     int max = 10;
     oss_get_terminal_size(NULL, &max);
-    max = max - 4;
+    max = max - 5;
+
+    printf("   \e[3mMusic Title\e[0m ║ \e[3mAlbum\e[0m ║ \e[3mArtist\e[0m\n");
 
     if (app->search_results) {
         Queue *q = get_core_queue();
@@ -733,8 +755,8 @@ int search_page(AppContext *app) {
                 break;
 
             SearchResult *result = vec_get(app->search_results, i);
-            char *album_name = NULL;
-            char *artist_name = NULL;
+            char *album_name = strdup("<No Album>");
+            char *artist_name = strdup("<No Artist>");
 
             bool in_queue = false;
             for (int j = 0; j < q->songs->length; j++) {
@@ -750,6 +772,7 @@ int search_page(AppContext *app) {
 
             if (albums->length != 0) {
                 Album *album_ref = vec_get_ref(albums, 0);
+                free(album_name);
                 album_name = strdup(album_ref->title);
 
                 Vec *artists;
@@ -757,6 +780,7 @@ int search_page(AppContext *app) {
 
                 if (artists->length != 0) {
                     Artist *artist_ref = vec_get_ref(artists, 0);
+                    free(artist_name);
                     artist_name = strdup(artist_ref->name);
                 }
 
@@ -765,32 +789,21 @@ int search_page(AppContext *app) {
 
             s_album_vec_free(albums);
 
-            char *cursor = "-";
+            char *cursor = "  ";
 
-            if (in_queue && i == app->selected)
-                cursor = ">|";
-            else if (in_queue && i != app->selected)
-                cursor = "|";
-            else if (i == app->selected)
-                cursor = ">";
+            if (in_queue && i == app->selected) {
+                cursor = ">*";
+            } else if (in_queue && i != app->selected) {
+                cursor = " *";
+            } else if (i == app->selected) {
+                cursor = "> ";
+            }
 
-            char *album_str = "<No Album>";
-            char *artist_str = "<No Artist>";
+            printf(" %s%s ║ %s ║ %s\n", cursor, result->title, album_name,
+                   artist_name);
 
-            if (album_name != NULL)
-                album_str = album_name;
-
-            if (artist_name != NULL)
-                artist_str = artist_name;
-
-            printf(" %s %s - %s - %s\n", cursor, result->title, album_str,
-                   artist_str);
-
-            if (album_name)
-                free(album_name);
-
-            if (artist_name)
-                free(artist_name);
+            free(album_name);
+            free(artist_name);
         }
     }
 
@@ -1289,10 +1302,10 @@ void playback_handle_arrow_input(AppContext *app_ctx, Key key) {
     handle_arrow_key(key, app_ctx);
     Queue *q = get_core_queue();
 
-    bool state = q->feed->paused;
-
     if (q->feed == NULL)
         return;
+
+    bool state = q->feed->paused;
 
     switch (key.ch.arrow) {
     case ARROW_LEFT: {
@@ -1389,9 +1402,12 @@ int playback_page(AppContext *app_ctx) {
 
     if (key.ch.standard == 'r' && q->songs->length > 0) {
         pb_q_remove(q, app_ctx->selected);
-        if (app_ctx->selected == 0)
-            return 0;
-        app_ctx->selected--;
+        if (app_ctx->selected != 0)
+            app_ctx->selected--;
+
+        if (q->songs->length != 0) {
+            pb_q_set_active(q, app_ctx->selected);
+        }
     }
 
     if (key.ch.standard == 'p' && q->songs->length > 0) {
