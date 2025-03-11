@@ -1,11 +1,10 @@
+#include "db/helpers.h"
+#include "storage/album.h"
+#include "storage/artist.h"
+#include "storage/music.h"
 #include "torinify/playback.h"
 #include "torinify/scanner.h"
 #include "utils/generic_vec.h"
-#include <db/exec.h>
-#include <db/exec/music_table.h>
-#include <db/helpers.h>
-#include <db/sql.h>
-#include <db/tables.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
@@ -407,7 +406,7 @@ T_CODE setup() {
     if (ret != T_SUCCESS)
         return ret;
 
-    ret = tf_init_db("../../sqlite.db");
+    ret = tf_init_db("../../mycollection.db");
     if (ret != T_SUCCESS)
         return ret;
 
@@ -551,6 +550,7 @@ void text_copy(Text *text, char *str) {
 
 int home_page();
 int search_page(AppContext *app);
+int discography_page(AppContext *app);
 int media_page(AppContext *app);
 int playback_page(AppContext *app);
 #endif
@@ -640,11 +640,15 @@ int main() {
             break;
 
         case 3:
+            redirect_to = discography_page(&app_ctx);
+            break;
+
+        case 4:
             printf("Media");
             redirect_to = media_page(&app_ctx);
             break;
 
-        case 4:
+        case 5:
             redirect_to = playback_page(&app_ctx);
             break;
 
@@ -679,8 +683,9 @@ int main() {
 int home_page() {
     printf("[Esc] Exit\n");
     printf("[1] Search\n");
-    printf("[2] Scan\n");
-    printf("[3] Playback\n");
+    printf("[2] Discography\n");
+    printf("[3] Scan\n");
+    printf("[4] Playback\n");
 
     Key key = readkey();
     if (is_esc(key))
@@ -694,6 +699,8 @@ int home_page() {
             return 3;
         case '3':
             return 4;
+        case '4':
+            return 5;
         default:
             return -2;
         }
@@ -726,6 +733,8 @@ int search_page(AppContext *app) {
                 break;
 
             SearchResult *result = vec_get(app->search_results, i);
+            char *album_name = NULL;
+            char *artist_name = NULL;
 
             bool in_queue = false;
             for (int j = 0; j < q->songs->length; j++) {
@@ -736,19 +745,52 @@ int search_page(AppContext *app) {
                 }
             }
 
-            if (in_queue) {
-                if (i == app->selected)
-                    printf(" >| %s\n", result->title);
-                else
-                    printf(" | %s\n", result->title);
-                continue;
+            Vec *albums;
+            s_music_get_all_albums(tgc->sqlite3, result->rowid, &albums);
+
+            if (albums->length != 0) {
+                Album *album_ref = vec_get_ref(albums, 0);
+                album_name = strdup(album_ref->title);
+
+                Vec *artists;
+                s_album_get_all_artists(tgc->sqlite3, album_ref->id, &artists);
+
+                if (artists->length != 0) {
+                    Artist *artist_ref = vec_get_ref(artists, 0);
+                    artist_name = strdup(artist_ref->name);
+                }
+
+                s_artist_vec_free(artists);
             }
 
-            if (i == app->selected) {
-                printf(" > %s\n", result->title);
-            } else {
-                printf(" - %s\n", result->title);
-            }
+            s_album_vec_free(albums);
+
+            char *cursor = "-";
+
+            if (in_queue && i == app->selected)
+                cursor = ">|";
+            else if (in_queue && i != app->selected)
+                cursor = "|";
+            else if (i == app->selected)
+                cursor = ">";
+
+            char *album_str = "<No Album>";
+            char *artist_str = "<No Artist>";
+
+            if (album_name != NULL)
+                album_str = album_name;
+
+            if (artist_name != NULL)
+                artist_str = artist_name;
+
+            printf(" %s %s - %s - %s\n", cursor, result->title, album_str,
+                   artist_str);
+
+            if (album_name)
+                free(album_name);
+
+            if (artist_name)
+                free(artist_name);
         }
     }
 
@@ -768,8 +810,8 @@ int search_page(AppContext *app) {
 
         SearchResult *result = vec_get(app->search_results, app->selected);
 
-        MusicRow *row;
-        DB_query_music_single(tgc->sqlite3, result->rowid, &row);
+        Music *music;
+        s_music_get(tgc->sqlite3, result->rowid, &music);
 
         Queue *q = get_core_queue();
 
@@ -777,28 +819,28 @@ int search_page(AppContext *app) {
             MusicQueue *mq = pb_q_get(q, j);
             if (result->rowid == mq->id) {
                 text_copy(&app->logmsg, "Already in Q");
-                dbt_music_row_free(row);
+                s_music_free(music);
                 return 0;
             }
         }
 
         MusicQueue *mq = pb_musicq_alloc();
 
-        mq->title = strdup(row->title);
-        mq->fullpath = strdup(row->fullpath);
-        mq->id = row->id;
+        mq->title = strdup(music->title);
+        mq->fullpath = strdup(music->fullpath);
+        mq->id = music->id;
 
         pb_q_add(q, mq);
 
-        if (row) {
+        if (music) {
             char txt[255];
-            sprintf(txt, "Added to playback '%s'", row->title);
+            sprintf(txt, "Added to playback '%s'", music->title);
             text_copy(&app->logmsg, txt);
         } else {
             text_copy(&app->logmsg, "rown't");
         }
 
-        dbt_music_row_free(row);
+        s_music_free(music);
         return 0;
     }
 
@@ -807,6 +849,68 @@ int search_page(AppContext *app) {
 
     s_vec_search_result_free(app->search_results);
     tf_search(app->search_query.str, 0.2, &app->search_results);
+
+    return 0;
+}
+
+/// === DISCOGRAPHY PAGE ===
+
+// int discography_artists(AppContext *app) {}
+// int discography_songs(AppContext *app) {}
+
+int discography_page(AppContext *app) {
+    printf("Discography - Albums \n");
+    printf("[1] Artists | [2] Songs\n");
+    printf("[Esc] Return\n");
+
+    int height;
+    oss_get_terminal_size(NULL, &height);
+
+    Vec *albums;
+    s_album_get_all(tgc->sqlite3, &albums);
+
+    int offset = app->selected;
+    app->max_selected = albums->length - 1;
+
+    for (int i = offset; i < albums->length; i++) {
+        Album *album = vec_get_ref(albums, i);
+
+        if (offset != 0 && offset == i) {
+            printf("... %d more albums \n", i);
+            height--;
+        }
+
+        if (i > (height + offset) - 6 && albums->length - i > 1) {
+            printf("... %d more albums \n", albums->length - i);
+            break;
+        }
+
+        if (i == offset) {
+            printf(" > %s\n", album->title);
+        } else
+            printf(" - %s\n", album->title);
+    }
+
+    s_album_vec_free(albums);
+
+    Key key = readkey();
+    if (is_esc(key))
+        return 1;
+
+    switch (key.ch.arrow) {
+    case ARROW_UP:
+        app->selected--;
+        if (app->selected < 0)
+            app->selected = 0;
+
+        break;
+    case ARROW_DOWN:
+        app->selected++;
+        if (app->selected > app->max_selected)
+            app->selected = app->max_selected;
+
+        break;
+    }
 
     return 0;
 }

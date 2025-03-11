@@ -1,7 +1,11 @@
 #include "torinify/scanner.h"
 #include "db/exec.h"
+#include "db/helpers.h"
 #include "db/tables.h"
 #include "media/scan.h"
+#include "storage/album.h"
+#include "storage/artist.h"
+#include "storage/music.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -75,15 +79,57 @@ void sc_scan_context_free(ScannerContext *ctx) {
 
 void sc_scan_context_free_and_commit(ScannerContext *ctx) {
 
+    dbh_start_transaction(ctx->db);
+
     for (int i = 0; i < ctx->scan_ctx->data->length; i++) {
         FileState *file_state = vec_get_ref(ctx->scan_ctx->data, i);
 
-        if (file_state->state == FILE_STATE_ACCEPTED) {
-            printf("Accepted filename: %s, music: %s, album: %s, artist: %s\n",
-                   file_state->filename, file_state->metadata.name,
-                   file_state->metadata.album, file_state->metadata.artist);
+        if (file_state->state != FILE_STATE_ACCEPTED) {
+            continue;
         }
+
+        Music music = {.id = -1,
+                       .title = file_state->metadata.name,
+                       .fullpath = file_state->filepath};
+
+        s_music_add(ctx->db, &music);
+
+        Vec *albums;
+        Album *album;
+        s_album_get_by_title(ctx->db, file_state->metadata.album, &albums);
+        Album album_new = {
+            .id = 0, .title = file_state->metadata.album, .year = "0000-00-00"};
+
+        if (albums->length == 0 && file_state->metadata.album) {
+
+            s_album_add(ctx->db, &album_new);
+            s_music_add_album(ctx->db, music.id, album_new.id);
+
+            album = &album_new;
+        } else if (albums->length != 0) {
+            Album *album_ref = vec_get_ref(albums, 0);
+            s_music_add_album(ctx->db, music.id, album_ref->id);
+            album = album_ref;
+        }
+
+        Vec *artists;
+        s_artist_get_by_name(ctx->db, file_state->metadata.artist, &artists);
+
+        if (artists->length == 0 && file_state->metadata.artist) {
+            Artist artist = {.id = 0, .name = file_state->metadata.artist};
+            s_artist_add(ctx->db, &artist);
+            s_album_add_artist(ctx->db, album->id, artist.id, ARTIST_TYPE_MAIN);
+        } else {
+            Artist *artist_ref = vec_get_ref(artists, 0);
+            s_album_add_artist(ctx->db, album->id, artist_ref->id,
+                               ARTIST_TYPE_MAIN);
+        }
+
+        s_album_vec_free(albums);
+        s_artist_vec_free(artists);
     }
+
+    dbh_commit_transaction(ctx->db);
 
     sc_scan_context_free(ctx);
 }

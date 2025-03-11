@@ -55,6 +55,13 @@ TDB_CODE s_artist_get(sqlite3 *db, int artist_id, Artist **artist) {
                     SQL_BINDS(BIND_INT(artist_id)), artist, s_artist_collect);
 }
 
+TDB_CODE s_artist_get_by_name(sqlite3 *db, char *name, Vec **artists) {
+
+    SQL_GENERIC_GET_ALL_WBINDS(
+        SQL_SELECT(ARTIST_TABLE, "id,name", "WHERE", "name = ?"),
+        SQL_BINDS(BIND_STR(name)), artists, s_artist_collect, Artist);
+}
+
 TDB_CODE s_artist_get_all(sqlite3 *db, Vec **artists) {
     SQL_GENERIC_GET_ALL(SQL_SELECT(ARTIST_TABLE, "id,name", "", ""), artists,
                         s_artist_collect, Artist);

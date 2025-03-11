@@ -1,5 +1,6 @@
 #include "db/helpers.h"
 #include "db/sql_macros.h"
+#include "storage/artist.h"
 #include <stdlib.h>
 #include <storage/album.h>
 
@@ -56,12 +57,32 @@ TDB_CODE s_album_add(sqlite3 *db, Album *album) {
 }
 
 TDB_CODE s_album_get(sqlite3 *db, int album_id, Album **album) {
-    SQL_GENERIC_GET(SQL_SELECT(ALBUM_TABLE, "id,title,year", "WHERE", "id = ?"),
-                    SQL_BINDS(BIND_INT(album_id)), album, s_album_collect);
+    SQL_GENERIC_GET(
+        SQL_SELECT(ALBUM_TABLE, ALBUM_COLLECT_FIELDS, "WHERE", "id = ?"),
+        SQL_BINDS(BIND_INT(album_id)), album, s_album_collect);
+}
+
+TDB_CODE s_album_get_by_title(sqlite3 *db, char *title, Vec **albums) {
+    SQL_GENERIC_GET_ALL_WBINDS(
+        SQL_SELECT(ALBUM_TABLE, ALBUM_COLLECT_FIELDS, "WHERE", "title = ?"),
+        SQL_BINDS(BIND_STR(title)), albums, s_album_collect, Album);
+}
+
+TDB_CODE s_album_get_by_any_title(sqlite3 *db, char *any_title, Vec **albums) {
+    char *sql = SQL_SELECT(
+        ALBUM_TABLE, ALBUM_COLLECT_FIELDS, "WHERE title = ? OR id IN ",
+        SQL_INNER_SELECT(ALBUM_ALTNAME_MTM_TABLE, "album_id",
+                         "WHERE title_id IN",
+                         SQL_INNER_SELECT(ALTERNATIVE_NAME_TABLE, "id", "WHERE",
+                                          "title = ?")));
+
+    SQL_GENERIC_GET_ALL_WBINDS(
+        sql, SQL_BINDS(BIND_STR(any_title), BIND_STR(any_title)), albums,
+        s_album_collect, Album);
 }
 
 TDB_CODE s_album_get_all(sqlite3 *db, Vec **albums) {
-    SQL_GENERIC_GET_ALL(SQL_SELECT(ALBUM_TABLE, "id,title,year", "", ""),
+    SQL_GENERIC_GET_ALL(SQL_SELECT(ALBUM_TABLE, ALBUM_COLLECT_FIELDS, "", ""),
                         albums, s_album_collect, Album);
 }
 
@@ -78,4 +99,32 @@ TDB_CODE s_album_update_title(sqlite3 *db, int album_id, char *title) {
 TDB_CODE s_album_update_year(sqlite3 *db, int album_id, char *year) {
     char *sql = SQL_UPDATE(ALBUM_TABLE, "year = ?", "WHERE", "id = ?");
     SQL_GENERIC_UPDATE(sql, SQL_BINDS(BIND_STR(year), BIND_INT(album_id)))
+}
+
+// ======
+// ARTIST RELATIONSHIP MANY TO MANY
+// ======
+
+TDB_CODE s_album_add_artist(sqlite3 *db, int album_id, int artist_id,
+                            char *artist_type) {
+    char *sql = SQL_INSERT(ALBUM_ARTIST_MTM_TABLE,
+                           "album_id,artist_id,artist_type", "?,?,?");
+    SQL_GENERIC_ADD(sql, SQL_BINDS(BIND_INT(album_id), BIND_INT(artist_id),
+                                   BIND_STR(artist_type)));
+}
+
+TDB_CODE s_album_get_all_artists(sqlite3 *db, int album_id, Vec **artists) {
+    char *s = SQL_SELECT(ARTIST_TABLE, ARTIST_COLLECT_FIELDS, "WHERE id IN",
+                         SQL_INNER_SELECT(ALBUM_ARTIST_MTM_TABLE, "artist_id",
+                                          "WHERE", "album_id = ?"));
+
+    SQL_GENERIC_GET_ALL_WBINDS(s, SQL_BINDS(BIND_INT(album_id)), artists,
+                               s_artist_collect, Artist)
+}
+
+TDB_CODE s_album_delete_artist(sqlite3 *db, int album_id, int artist_id) {
+    char *s = SQL_DELETE(ALBUM_ARTIST_MTM_TABLE, "WHERE",
+                         "album_id = ? AND artist_id = ?");
+
+    SQL_GENERIC_DELETE(s, SQL_BINDS(BIND_INT(album_id), BIND_INT(artist_id)));
 }

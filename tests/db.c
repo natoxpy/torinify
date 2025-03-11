@@ -1,5 +1,7 @@
 #include "common.c"
 #include "database/test_album.c"
+#include "database/test_album_artist.c"
+#include "database/test_album_music.c"
 #include "database/test_artist.c"
 #include "database/test_migrations.c"
 #include "database/test_music.c"
@@ -17,19 +19,34 @@ void db_tests() {
     sqlite3_open(":memory:", &db);
     printf(" - Database \r");
 
-    db_testfn_t tests[] = {
-        &test_run_migrations,       &test_run_migration_2,
-        &test_music_get_1,          &test_music_add,
-        &test_music_get_2,          &test_music_get_3,
-        &test_music_update,         &test_music_add_altname,
-        &test_music_get_altname,    &test_music_get_all_altname,
-        &test_music_delete_altname, &test_music_delete,
-        &test_album_get_1,          &test_album_add,
-        &test_album_get_2,          &test_album_get_3,
-        &test_album_update,         &test_album_delete,
-        &test_artist_get_1,         &test_artist_add,
-        &test_artist_get_2,         &test_artist_get_3,
-        &test_artist_update,        &test_artist_delete};
+    db_testfn_t tests[] = {&test_run_migrations,
+                           &test_run_migration_2,
+                           &test_music_get_preadd,
+                           &test_album_get_preadd,
+                           &test_artist_get_preadd,
+                           &test_music_add,
+                           &test_album_add,
+                           &test_artist_add,
+                           &test_music_get,
+                           &test_music_get_by_title,
+                           &test_music_get_all,
+                           &test_music_update,
+                           &test_music_add_altname,
+                           &test_music_get_altname,
+                           &test_music_get_all_altname,
+                           &test_music_get_by_any_title,
+                           &test_music_delete_altname,
+                           &test_album_get,
+                           &test_album_get_all,
+                           &test_album_update,
+                           &test_album_music_add,
+                           &test_album_artist_add,
+                           &test_artist_get,
+                           &test_artist_get_all,
+                           &test_artist_update,
+                           &test_music_delete,
+                           &test_album_delete,
+                           &test_artist_delete};
 
     bool anyfails = false;
 

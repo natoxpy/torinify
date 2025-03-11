@@ -1,5 +1,3 @@
-#include "db/exec/music_table.h"
-#include "db/tables.h"
 #include "utils/generic_vec.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,8 +22,8 @@ SearchContext *s_search_context_alloc() {
         return NULL;
 
     search_ctx->rowid = -1;
-    search_ctx->title = "";
-    search_ctx->album = "";
+    search_ctx->title = NULL;
+    search_ctx->album = NULL;
     search_ctx->alt_titles = NULL;
     search_ctx->artists = NULL;
 
@@ -66,13 +64,12 @@ void s_search_result_free(SearchResult *search_result) {
 
 void s_vec_search_context_init(sqlite3 *db, Vec **search_ctx_out) {
     Vec *musics;
-    // s_music_get_all(db, &musics);
-    DB_query_music_all(db, &musics);
+    s_music_get_all(db, &musics);
 
     Vec *search_ctx = vec_init(sizeof(SearchContext));
 
     for (int i = 0; i < musics->length; i++) {
-        MusicRow *music = vec_get_ref(musics, i);
+        Music *music = vec_get_ref(musics, i);
         SearchContext sctx = {music->id, music->title, NULL, NULL, NULL};
 
         vec_push(search_ctx, &sctx);
@@ -82,8 +79,7 @@ void s_vec_search_context_init(sqlite3 *db, Vec **search_ctx_out) {
 
     *search_ctx_out = search_ctx;
 
-    dbt_music_vec_rows_free(musics);
-    // s_vec_music_free(musics);
+    s_music_vec_free(musics);
 }
 
 void s_vec_search_context_free(Vec *search_ctx_vec) {
@@ -117,7 +113,8 @@ void s_vec_search_result_free(Vec *results) {
 }
 
 double process_search(char *query, SearchContext *ctx) {
-    return word_based_similarity(ctx->title, query);
+    double title_result = word_based_similarity(ctx->title, query);
+    return title_result;
 }
 
 int result_compare(const void *a, const void *b) {

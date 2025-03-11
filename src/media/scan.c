@@ -199,9 +199,16 @@ void scan_file(char *fullpath, MusicContext *music_ctx) {
         return;
     }
 
-    music_ctx->name = strdup(taglib_tag_title(tag));
-    music_ctx->artist = strdup(taglib_tag_artist(tag));
-    music_ctx->album = strdup(taglib_tag_album(tag));
+    char *title = taglib_tag_title(tag);
+    char *artist = taglib_tag_artist(tag);
+    char *album = taglib_tag_album(tag);
+
+    if (strcmp(title, "") != 0)
+        music_ctx->name = strdup(title);
+    if (strcmp(artist, "") != 0)
+        music_ctx->artist = strdup(artist);
+    if (strcmp(album, "") != 0)
+        music_ctx->album = strdup(album);
 
     taglib_file_free(file);
     taglib_tag_free_strings();
@@ -213,7 +220,7 @@ int scan_thread(void *arg) {
     for (int i = 0; i < thread_ctx->data->length; i++) {
         FileState *file_state = vec_get_ref(thread_ctx->data, i);
 
-        MusicContext mc = {0, 0, 0};
+        MusicContext mc = {NULL, NULL, NULL};
 
         mtx_lock(thread_ctx->mutex);
 

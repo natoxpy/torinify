@@ -58,10 +58,10 @@ int contains_expected(char **expects, size_t expect_size, Vec *vec) {
 }
 
 char *_migrations_expects[] = {
-    ".migrations",     "Music",          "Album",          "Metadata",
-    "MediaSource",     "Artist",         "AlbumArtists",   "Genre",
-    "MetadataArtists", "MetadataGenres", "Music",          "MusicAltTitle",
-    "ArtistAltTitle",  "AlbumAltTitle",  "AlternativeName"};
+    ".migrations",    "Music",          "Album",         "Metadata",
+    "MediaSource",    "Artist",         "AlbumArtists",  "Genre",
+    "MetadataGenres", "Music",          "MusicAltTitle", "ArtistAltTitle",
+    "AlbumAltTitle",  "AlternativeName"};
 
 bool _migration_contains_expected_tables(sqlite3 *db) {
     Vec *tables = get_tables(db);

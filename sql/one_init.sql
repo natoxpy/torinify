@@ -44,13 +44,13 @@ CREATE TABLE Metadata (
     "year" TEXT -- ISO8601 (year)-(mo)-(da)T
 );
 
-CREATE TABLE "MetadataArtists" (
-    "id" INTEGER PRIMARY KEY,
-    "metadata_id" INTEGER NOT NULL,
-    "artist_id" INTEGER NOT NULL,
-    FOREIGN KEY ("metadata_id") REFERENCES "Metadata" ("id") ON DELETE CASCADE,
-    FOREIGN KEY ("artist_id") REFERENCES "Artist" ("id") ON DELETE CASCADE
-);
+-- CREATE TABLE "MetadataArtists" (
+--     "id" INTEGER PRIMARY KEY,
+--     "metadata_id" INTEGER NOT NULL,
+--     "artist_id" INTEGER NOT NULL,
+--     FOREIGN KEY ("metadata_id") REFERENCES "Metadata" ("id") ON DELETE CASCADE,
+--     FOREIGN KEY ("artist_id") REFERENCES "Artist" ("id") ON DELETE CASCADE
+-- );
 
 CREATE TABLE "MetadataGenres" (
     "id" INTEGER PRIMARY KEY,
@@ -66,11 +66,8 @@ CREATE TABLE Music (
     "title" TEXT NOT NULL,
     "fullpath" TEXT NOT NULL UNIQUE,
     "source_id" INTEGER,
-    "album_id" INTEGER,
     "metadata_id" INTEGER NOT NULL,
-    FOREIGN KEY ("source_id") REFERENCES "MediaSource" ("id")
-    ON DELETE SET NULL,
-    FOREIGN KEY ("album_id") REFERENCES "Album" ("id") ON DELETE SET NULL,
+    FOREIGN KEY ("source_id") REFERENCES "MediaSource" ("id") ON DELETE SET NULL,
     FOREIGN KEY ("metadata_id") REFERENCES "Metadata" ("id") ON DELETE CASCADE
 );
 
@@ -81,6 +78,15 @@ CREATE TABLE "MusicAltTitle" (
     "title_id" INTEGER NOT NULL,
     FOREIGN KEY ("music_id") REFERENCES "Music" ("id") ON DELETE CASCADE,
     FOREIGN KEY ("title_id") REFERENCES "AlternativeName" ("id")
+    ON DELETE CASCADE
+);
+-- Many Too Many
+CREATE TABLE "AlbumMusics" (
+    "id" INTEGER PRIMARY KEY,
+    "music_id" INTEGER NOT NULL,
+    "album_id" INTEGER NOT NULL,
+    FOREIGN KEY ("music_id") REFERENCES "Music" ("id") ON DELETE CASCADE,
+    FOREIGN KEY ("album_id") REFERENCES "Album" ("id")
     ON DELETE CASCADE
 );
 
@@ -109,5 +115,5 @@ CREATE TABLE "AlternativeName" (
     "id" INTEGER PRIMARY KEY,
     "title" TEXT NOT NULL,
     -- ISO 639
-    "language" TEXT UNIQUE NOT NULL
+    "language" TEXT NOT NULL
 );

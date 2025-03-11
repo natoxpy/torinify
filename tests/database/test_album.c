@@ -38,7 +38,7 @@ clean:
     return ret;
 }
 
-void test_album_get_1(sqlite3 *db, bool *passed, char **name, char **log) {
+void test_album_get_preadd(sqlite3 *db, bool *passed, char **name, char **log) {
     *name = "Album get (doesn't exist case)";
 
     Album *album = NULL;
@@ -88,7 +88,7 @@ void test_album_add(sqlite3 *db, bool *passed, char **name, char **log) {
     *passed = true;
 }
 
-void test_album_get_2(sqlite3 *db, bool *passed, char **name, char **log) {
+void test_album_get(sqlite3 *db, bool *passed, char **name, char **log) {
     *name = "Album get";
 
     Album *album = NULL;
@@ -119,7 +119,7 @@ void test_album_get_2(sqlite3 *db, bool *passed, char **name, char **log) {
     *passed = true;
 }
 
-void test_album_get_3(sqlite3 *db, bool *passed, char **name, char **log) {
+void test_album_get_all(sqlite3 *db, bool *passed, char **name, char **log) {
     *name = "Album get all";
     Vec *albums = NULL;
     if (s_album_get_all(db, &albums) != TDB_SUCCESS) {

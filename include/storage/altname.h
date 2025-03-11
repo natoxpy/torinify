@@ -5,6 +5,7 @@
 #include <sqlite3.h>
 
 #define ALTERNATIVE_NAME_TABLE "AlternativeName"
+#define ALTERNATIVE_NAME_COLLECT_FIELDS "id,title,language"
 
 typedef struct {
     int id;

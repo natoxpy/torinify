@@ -38,7 +38,8 @@ clean:
     return ret;
 }
 
-void test_artist_get_1(sqlite3 *db, bool *passed, char **name, char **log) {
+void test_artist_get_preadd(sqlite3 *db, bool *passed, char **name,
+                            char **log) {
     *name = "Artist get (doesn't exist case)";
 
     Artist *artist = NULL;
@@ -88,7 +89,7 @@ void test_artist_add(sqlite3 *db, bool *passed, char **name, char **log) {
     *passed = true;
 }
 
-void test_artist_get_2(sqlite3 *db, bool *passed, char **name, char **log) {
+void test_artist_get(sqlite3 *db, bool *passed, char **name, char **log) {
     *name = "Artist get";
 
     Artist *artist = NULL;
@@ -118,7 +119,7 @@ void test_artist_get_2(sqlite3 *db, bool *passed, char **name, char **log) {
     *passed = true;
 }
 
-void test_artist_get_3(sqlite3 *db, bool *passed, char **name, char **log) {
+void test_artist_get_all(sqlite3 *db, bool *passed, char **name, char **log) {
     *name = "Artist get all";
     Vec *artists = NULL;
     if (s_artist_get_all(db, &artists) != TDB_SUCCESS) {

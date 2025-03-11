@@ -40,7 +40,7 @@ clean:
     return ret;
 }
 
-void test_music_get_1(sqlite3 *db, bool *passed, char **name, char **log) {
+void test_music_get_preadd(sqlite3 *db, bool *passed, char **name, char **log) {
     *name = "Music get (doesn't exist case)";
 
     Music *music = NULL;
@@ -90,7 +90,7 @@ void test_music_add(sqlite3 *db, bool *passed, char **name, char **log) {
     *passed = true;
 }
 
-void test_music_get_2(sqlite3 *db, bool *passed, char **name, char **log) {
+void test_music_get(sqlite3 *db, bool *passed, char **name, char **log) {
     *name = "Music get";
 
     Music *music = NULL;
@@ -121,7 +121,32 @@ void test_music_get_2(sqlite3 *db, bool *passed, char **name, char **log) {
     *passed = true;
 }
 
-void test_music_get_3(sqlite3 *db, bool *passed, char **name, char **log) {
+void test_music_get_by_title(sqlite3 *db, bool *passed, char **name,
+                             char **log) {
+    *name = "Music get by title";
+
+    Vec *musics;
+    s_music_get_by_title(db, "Song id 1", &musics);
+
+    if (musics->length != 1) {
+        *log = "Unable to find expected song by title";
+        goto clean;
+    }
+
+    Music *music = vec_get_ref(musics, 0);
+
+    if (music->id != 1) {
+        *log = "Music found did not match expected id";
+        goto clean;
+    }
+
+    *passed = true;
+
+clean:
+    s_music_vec_free(musics);
+}
+
+void test_music_get_all(sqlite3 *db, bool *passed, char **name, char **log) {
     *name = "Music get all";
     Vec *musics = NULL;
     if (s_music_get_all(db, &musics) != TDB_SUCCESS) {
