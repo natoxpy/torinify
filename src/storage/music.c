@@ -4,6 +4,7 @@
 #include "errors/errors.h"
 #include "storage/album.h"
 #include "storage/altname.h"
+#include "storage/metadata.h"
 #include <sqlite3.h>
 
 Music *s_music_alloc() {
@@ -113,6 +114,14 @@ TDB_CODE s_music_update_fullpath(sqlite3 *db, int id, char *fullpath) {
 TDB_CODE s_music_update_source(sqlite3 *db, int music_id, int source_id) {
     char *sql = SQL_UPDATE(MUSIC_TABLE, "source_id = ?", "WHERE", "id = ?");
     SQL_GENERIC_UPDATE(sql, SQL_BINDS(BIND_INT(source_id), BIND_INT(music_id)))
+}
+
+TDB_CODE s_music_get_metadata(sqlite3 *db, int music_id, Metadata **metadata) {
+    char *sql = SQL_SELECT(
+        METADATA_TABLE, METADATA_COLLECT_FIELDS, "WHERE id IN",
+        SQL_INNER_SELECT(MUSIC_TABLE, "metadata_id", "WHERE", "id = ?"));
+    SQL_GENERIC_GET(sql, SQL_BINDS(BIND_INT(music_id)), metadata,
+                    s_metadata_collect)
 }
 
 // ======

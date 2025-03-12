@@ -27,6 +27,7 @@ void db_tests() {
                            &test_music_add,
                            &test_album_add,
                            &test_artist_add,
+                           &test_music_get_metadata,
                            &test_music_get,
                            &test_music_get_by_title,
                            &test_music_get_all,

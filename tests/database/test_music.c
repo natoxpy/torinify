@@ -121,6 +121,31 @@ void test_music_get(sqlite3 *db, bool *passed, char **name, char **log) {
     *passed = true;
 }
 
+void test_music_get_metadata(sqlite3 *db, bool *passed, char **name,
+                             char **log) {
+    *name = "Music get metadata";
+
+    Metadata *metadata;
+    if (s_music_get_metadata(db, 1, &metadata) != TDB_SUCCESS) {
+        *log = "s_music_get_metadata did not return TDB_SUCCESS";
+        goto clean;
+    }
+
+    if (metadata->id != 1) {
+        *log = "Metadata id was not as expected";
+        goto clean;
+    }
+
+    if (strcmp(metadata->year, "0000-00-00") != 0) {
+        *log = "Metadata year was not as expected";
+        goto clean;
+    }
+
+    *passed = true;
+clean:
+    s_metadata_free(metadata);
+}
+
 void test_music_get_by_title(sqlite3 *db, bool *passed, char **name,
                              char **log) {
     *name = "Music get by title";
