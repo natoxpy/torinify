@@ -84,6 +84,8 @@ int inline static is_space(Key key) {
 #include <termios.h>
 #include <unistd.h>
 
+void oss_usleep(useconds_t ms) { usleep(ms * 1000); }
+
 double oss_get_time() {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -197,6 +199,8 @@ int oss_path_exists(char *path) {
 #ifdef _WIN32
 
 #include <windows.h>
+
+void oss_usleep(double ms) { Sleep(ms); }
 
 double oss_get_time() {
     LARGE_INTEGER freq, counter;
@@ -590,43 +594,9 @@ void app_cleanup() {
     return;
 }
 
-int handle_queue_feed_loop(void *_) {
-    Queue *q = get_core_queue();
-
-    while (1) {
-        usleep(25 * 1000);
-
-        if (q->feed) {
-            long duration =
-                q->feed->data->length / (sizeof(float) * q->feed->channels);
-            long current_time = q->feed->samples_played;
-
-            if (!pb_q_is_paused(q) && pb_q_is_finished(q)) {
-                switch (q->loopstyle) {
-                case P_LOOP_NONE:
-                    pb_q_pause(q);
-                    break;
-                case P_LOOP_SINGLE:
-                    pb_q_set_current_time(q, 0);
-                    break;
-                case P_LOOP_QUEUE:
-                    pb_q_next(q);
-                    break;
-                }
-            }
-
-            if (pb_q_is_finished(q) && pb_q_is_last(q)) {
-                pb_q_pause(q);
-            }
-        }
-    }
-
-    return 0;
-}
-
 int main() {
 #ifdef _WIN32
-    int _ = freopen("null", "w", stderr);
+    // int _ = freopen("null", "w", stderr);
 #elif __unix__
     // freopen("/dev/null", "w", stderr);
 #endif
@@ -643,8 +613,10 @@ int main() {
     int redirect_to = 0;
 
     while (1) {
-        clean_screen();
-        printf("torinify - ");
+        if (app_ctx.page != 3) {
+            clean_screen();
+            printf("torinify - ");
+        }
 
         if (app_ctx.logmsg.len != 0) {
             printf("%s - ", app_ctx.logmsg.str);
@@ -664,6 +636,13 @@ int main() {
 
         case 3:
             redirect_to = playback_page(&app_ctx);
+
+#ifdef _WIN32
+            oss_usleep(100);
+#elif __unix__
+            oss_usleep(25);
+#endif
+
             break;
 
         case 4:
@@ -1098,6 +1077,8 @@ int media_scan_media_subpage(AppContext *app_ctx) {
         printf("]\n");
 
         sc_unlock_scan(scanner_ctx);
+
+        oss_usleep(1000);
     }
 
     sc_scan_context_free_and_commit(scanner_ctx);
@@ -1357,7 +1338,7 @@ void playback_handle_arrow_input(AppContext *app_ctx, Key key) {
 }
 
 int playback_page(AppContext *app_ctx) {
-    usleep(35 * 1000);
+
     clean_screen();
 
     Queue *q = get_core_queue();
@@ -1382,7 +1363,7 @@ int playback_page(AppContext *app_ctx) {
     int width;
     oss_get_terminal_size(&width, NULL);
 
-    printf("Playback - %s - %s \n", song_status, song_name);
+    printf("torinify - Playback - %s - %s \n", song_status, song_name);
     printf("[Esc] Return \n");
 
     printf("[p] Play Song | [<Space>] Play/Pause | [< | >] Seek | [<[> | <]>] "
