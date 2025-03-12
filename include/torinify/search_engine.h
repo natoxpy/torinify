@@ -5,10 +5,7 @@
 
 typedef struct {
     int rowid;
-    char *title;
-    char *album;
-    Vec *alt_titles;
-    Vec *artists;
+    Vec *searchable_texts;
 } SearchContext;
 
 typedef struct {

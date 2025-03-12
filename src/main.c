@@ -84,6 +84,12 @@ int inline static is_space(Key key) {
 #include <termios.h>
 #include <unistd.h>
 
+double oss_get_time() {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec + ts.tv_nsec / 1e9;
+}
+
 void oss_hide_cursor() { printf("\033[?25l"); }
 void oss_show_cursor() { printf("\033[?25h"); }
 
@@ -191,6 +197,13 @@ int oss_path_exists(char *path) {
 #ifdef _WIN32
 
 #include <windows.h>
+
+double oss_get_time() {
+    LARGE_INTEGER freq, counter;
+    QueryPerformanceFrequency(&freq);
+    QueryPerformanceCounter(&counter);
+    return (double)counter.QuadPart / freq.QuadPart;
+}
 
 void oss_print_with_background_white(char *text) {
     printf("\033[47;30m%s\033[0m", text);
@@ -477,6 +490,7 @@ typedef struct {
     Text search_query;
     Vec *search_results;
     Text general_use;
+    Vec *search_ctx;
 } AppContext;
 
 AppContext init_app() {
@@ -495,6 +509,7 @@ AppContext init_app() {
                         .cap = 1012,
                         .str = malloc(sizeof(char *) * 1012)},
         .search_results = NULL,
+        .search_ctx = NULL,
     };
 
     app_ctx.search_query.str[0] = '\0';
@@ -665,6 +680,12 @@ int main() {
             redirect_to = 1;
         }
 
+        if (app_ctx.page != redirect_to && redirect_to == 2) {
+            s_vec_search_context_free(app_ctx.search_ctx);
+            app_ctx.search_ctx = NULL;
+            s_vec_search_context_init(tgc->sqlite3, &app_ctx.search_ctx);
+        }
+
         if (redirect_to != 0 && redirect_to != app_ctx.page) {
             text_empty(&app_ctx.general_use);
             text_empty(&app_ctx.logmsg);
@@ -680,8 +701,8 @@ int main() {
     free(app_ctx.search_query.str);
     free(app_ctx.general_use.str);
     free(app_ctx.logmsg.str);
-
     s_vec_search_result_free(app_ctx.search_results);
+    s_vec_search_context_free(app_ctx.search_ctx);
 
     return 0;
 }
@@ -866,7 +887,17 @@ int search_page(AppContext *app) {
     app->selected = 0;
 
     s_vec_search_result_free(app->search_results);
-    tf_search(app->search_query.str, 0.2, &app->search_results);
+
+    double start_time = oss_get_time();
+
+    s_process_search(app->search_ctx, app->search_query.str,
+                     &app->search_results, 0.2);
+
+    double diff_time = oss_get_time() - start_time;
+
+    char txt[255];
+    sprintf(txt, "search took %d milliseconds", (int)(diff_time * 1000));
+    text_copy(&app->logmsg, txt);
 
     return 0;
 }

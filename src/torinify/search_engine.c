@@ -1,3 +1,5 @@
+#include "storage/album.h"
+#include "storage/artist.h"
 #include "utils/generic_vec.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,10 +24,7 @@ SearchContext *s_search_context_alloc() {
         return NULL;
 
     search_ctx->rowid = -1;
-    search_ctx->title = NULL;
-    search_ctx->album = NULL;
-    search_ctx->alt_titles = NULL;
-    search_ctx->artists = NULL;
+    search_ctx->searchable_texts = NULL;
 
     return search_ctx;
 }
@@ -70,11 +69,35 @@ void s_vec_search_context_init(sqlite3 *db, Vec **search_ctx_out) {
 
     for (int i = 0; i < musics->length; i++) {
         Music *music = vec_get_ref(musics, i);
-        SearchContext sctx = {music->id, music->title, NULL, NULL, NULL};
+        Vec *searchable_texts = vec_init(sizeof(char *));
+
+        char *title = strdup(music->title);
+        vec_push(searchable_texts, &title);
+
+        Vec *albums;
+        s_music_get_all_albums(db, music->id, &albums);
+
+        for (int j = 0; j < albums->length; j++) {
+            Album *album = vec_get_ref(albums, j);
+            char *album_title = strdup(album->title);
+            vec_push(searchable_texts, &album_title);
+
+            Vec *artists;
+            s_album_get_all_artists(db, album->id, &artists);
+            for (int k = 0; k < artists->length; k++) {
+                Artist *artist = vec_get_ref(artists, k);
+                char *artist_title = strdup(artist->name);
+                vec_push(searchable_texts, &artist_title);
+            }
+
+            s_artist_vec_free(artists);
+        }
+
+        s_album_vec_free(albums);
+
+        SearchContext sctx = {music->id, searchable_texts};
 
         vec_push(search_ctx, &sctx);
-
-        music->title = NULL;
     }
 
     *search_ctx_out = search_ctx;
@@ -89,8 +112,11 @@ void s_vec_search_context_free(Vec *search_ctx_vec) {
     if (search_ctx_vec->data) {
         for (int i = 0; i < search_ctx_vec->length; i++) {
             SearchContext *search_ctx = vec_get(search_ctx_vec, i);
+            for (int j = 0; j < search_ctx->searchable_texts->length; j++) {
+                free(vec_get_ref(search_ctx->searchable_texts, j));
+            }
 
-            free(search_ctx->title);
+            vec_free(search_ctx->searchable_texts);
         }
     }
 
@@ -113,8 +139,14 @@ void s_vec_search_result_free(Vec *results) {
 }
 
 double process_search(char *query, SearchContext *ctx) {
-    double title_result = word_based_similarity(ctx->title, query);
-    return title_result;
+    double total = 0;
+
+    for (int i = 0; i < ctx->searchable_texts->length; i++) {
+        total +=
+            word_based_similarity(vec_get_ref(ctx->searchable_texts, i), query);
+    }
+
+    return total / ctx->searchable_texts->length;
 }
 
 int result_compare(const void *a, const void *b) {
@@ -176,7 +208,8 @@ void *thread_compute_search_process(void *search_ctx_data) {
         if (comfy < threshold)
             continue;
 
-        SearchResult result = {ctx->rowid, comfy, strdup(ctx->title)};
+        SearchResult result = {ctx->rowid, comfy,
+                               strdup(vec_get_ref(ctx->searchable_texts, 0))};
 
         vec_push(results, &result);
     }
