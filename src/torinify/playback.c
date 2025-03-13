@@ -4,6 +4,7 @@
 // but it can be called externally directly as well
 
 #include <errors/errors.h>
+#include <stdatomic.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -11,11 +12,15 @@
 #include <threads.h>
 #include <torinify/playback.h>
 
+atomic_int playback_handle_active = 1;
+
+void deactivate_playback_handle() { atomic_store(&playback_handle_active, 0); }
+
 int thread_playback_handle(void *args) {
     PlaybackContext *ctx = args;
     Queue *q = NULL;
 
-    while (q == NULL) {
+    while (q == NULL && atomic_load(&playback_handle_active)) {
         thrd_sleep(&(struct timespec){.tv_nsec = 100000000}, NULL);
 
         if (ctx->active_queue == -1)
@@ -24,8 +29,7 @@ int thread_playback_handle(void *args) {
         q = vec_get_ref(ctx->queues, ctx->active_queue);
     }
 
-    while (ctx->thread_running) {
-
+    while (atomic_load(&playback_handle_active)) {
         thrd_sleep(&(struct timespec){.tv_nsec = 100000000}, NULL);
 
         if (q->feed) {
@@ -78,7 +82,7 @@ void pb_free(PlaybackContext *pbc) {
     if (pbc == NULL)
         return;
 
-    pbc->thread_running = false;
+    deactivate_playback_handle();
 
     thrd_join(pbc->thread, NULL);
 
