@@ -296,7 +296,7 @@ char oss_readch() {
     return ch;
 }
 
-void oss_setup() {}
+void oss_setup() { SetConsoleOutputCP(CP_UTF8); }
 void inline static oss_clean_screen() { printf("\033[H\033[J"); }
 void oss_cleanup() {}
 

@@ -1,13 +1,7 @@
-#ifndef _AUDIO_FILE_H
-#define _AUDIO_FILE_H
-#include <errors/errors.h>
-#include <stdint.h>
-int f_read_file(char *filename, uint8_t **file_data);
-#endif
-
 #ifndef _AUDIO_VECTOR_H
 #define _AUDIO_VECTOR_H
 
+#include <errors/errors.h>
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavformat/avio.h>
