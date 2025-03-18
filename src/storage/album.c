@@ -1,6 +1,7 @@
 #include "db/helpers.h"
 #include "db/sql_macros.h"
 #include "storage/artist.h"
+#include "storage/music.h"
 #include <stdlib.h>
 #include <storage/album.h>
 
@@ -99,6 +100,25 @@ TDB_CODE s_album_update_title(sqlite3 *db, int album_id, char *title) {
 TDB_CODE s_album_update_year(sqlite3 *db, int album_id, char *year) {
     char *sql = SQL_UPDATE(ALBUM_TABLE, "year = ?", "WHERE", "id = ?");
     SQL_GENERIC_UPDATE(sql, SQL_BINDS(BIND_STR(year), BIND_INT(album_id)))
+}
+
+// ======
+// MUSIC RELATIONSHIP MANY TO MANY
+TDB_CODE s_album_add_music(sqlite3 *db, int album_id, int music_id) {
+    return s_music_add_album(db, music_id, album_id);
+}
+
+TDB_CODE s_album_delete_music(sqlite3 *db, int album_id, int music_id) {
+    return s_music_delete_album(db, music_id, album_id);
+}
+
+TDB_CODE s_album_get_all_musics(sqlite3 *db, int album_id, Vec **musics) {
+    char *s = SQL_SELECT(MUSIC_TABLE, MUSIC_COLLECT_FIELDS, "WHERE id IN",
+                         SQL_INNER_SELECT(ALBUM_MUSIC_MTM_TABLE, "music_id",
+                                          "WHERE", "album_id = ?"));
+
+    SQL_GENERIC_GET_ALL_WBINDS(s, SQL_BINDS(BIND_INT(album_id)), musics,
+                               s_music_collect, Music)
 }
 
 // ======

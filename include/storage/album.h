@@ -35,6 +35,10 @@ TDB_CODE s_album_delete(sqlite3 *db, int album_id);
 TDB_CODE s_album_update_title(sqlite3 *db, int album_id, char *title);
 TDB_CODE s_album_update_year(sqlite3 *db, int album_id, char *year);
 
+TDB_CODE s_album_add_music(sqlite3 *db, int album_id, int music_id);
+TDB_CODE s_album_delete_music(sqlite3 *db, int album_id, int music_id);
+TDB_CODE s_album_get_all_musics(sqlite3 *db, int album_id, Vec **musics);
+
 TDB_CODE s_album_add_artist(sqlite3 *db, int album_id, int artist_id,
                             char *artist_type);
 TDB_CODE s_album_get_all_artists(sqlite3 *db, int album_id, Vec **artists);
