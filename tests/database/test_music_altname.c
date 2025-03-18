@@ -177,7 +177,7 @@ void test_music_get_by_any_title(sqlite3 *db, bool *passed, char **name,
     ret = s_music_get_by_any_title(db, "Translated name", &musics);
     ret2 = s_music_get_by_any_title(db, "Translated for ID 2", &musics2);
     ret3 = s_music_get_by_any_title(db, "翻訳名", &musics3);
-    ret4 = s_music_get_by_any_title(db, "Song id 2", &musics4);
+    ret4 = s_music_get_by_any_title(db, "こんにちは世界", &musics4);
 
     if (ret != TDB_SUCCESS || ret2 != TDB_SUCCESS || ret3 != TDB_SUCCESS ||
         ret4 != TDB_SUCCESS) {

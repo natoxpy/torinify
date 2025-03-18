@@ -185,8 +185,13 @@ void recursive_readdir(Vec *sources, Vec **out) {
 }
 
 void scan_file(char *fullpath, MusicContext *music_ctx) {
+    uint8_t *file_data;
+    int file_size = f_read_file(fullpath, &file_data);
+    if (file_size == -1)
+        return;
 
-    TagLib_File *file = taglib_file_new(fullpath);
+    TagLib_IOStream *stream = taglib_memory_iostream_new(file_data, file_size);
+    TagLib_File *file = taglib_file_new_iostream(stream);
 
     if (!file) {
         return;
@@ -212,6 +217,8 @@ void scan_file(char *fullpath, MusicContext *music_ctx) {
 
     taglib_file_free(file);
     taglib_tag_free_strings();
+    taglib_iostream_free(stream);
+    free(file_data);
 }
 
 int scan_thread(void *arg) {

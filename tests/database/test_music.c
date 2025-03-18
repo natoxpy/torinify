@@ -60,7 +60,7 @@ void test_music_add(sqlite3 *db, bool *passed, char **name, char **log) {
     Music music = {.id = -1, "Song id 1", "/path/to/song"};
     int ret = s_music_add(db, &music);
 
-    Music music2 = {.id = -1, "Song id 2", "/path/to/song2"};
+    Music music2 = {.id = -1, "こんにちは世界", "への道/歌"};
     int ret2 = s_music_add(db, &music2);
 
     if (ret != TDB_SUCCESS || ret2 != TDB_SUCCESS) {
@@ -94,15 +94,17 @@ void test_music_get(sqlite3 *db, bool *passed, char **name, char **log) {
     *name = "Music get";
 
     Music *music = NULL;
+    Music *music2 = NULL;
+
     int ret = s_music_get(db, 1, &music);
-    if (ret != TDB_SUCCESS) {
-        *passed = false;
+    int ret2 = s_music_get(db, 2, &music2);
+
+    if (ret != TDB_SUCCESS && ret2 != TDB_SUCCESS) {
         *log = "s_music_add failed to return TDB_SUCCESS";
         return;
     }
 
-    if (music == NULL) {
-        *passed = false;
+    if (music == NULL || music2 == NULL) {
         *log = "music is null";
         return;
     }
@@ -110,12 +112,16 @@ void test_music_get(sqlite3 *db, bool *passed, char **name, char **log) {
     if (!(strcmp(music->title, "Song id 1") == 0 &&
           strcmp(music->fullpath, "/path/to/song") == 0)) {
         *log = "Music fields did not match expected values";
-        *passed = false;
-
-        s_music_free(music);
-        return;
+        goto clean;
     }
 
+    if (!(strcmp(music2->title, "こんにちは世界") == 0 &&
+          strcmp(music2->fullpath, "への道/歌") == 0)) {
+        *log = "Music fields did not match expected values";
+        goto clean;
+    }
+
+clean:
     s_music_free(music);
 
     *passed = true;

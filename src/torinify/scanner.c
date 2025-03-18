@@ -88,11 +88,24 @@ void sc_scan_context_free_and_commit(ScannerContext *ctx) {
             continue;
         }
 
+        if (file_state->metadata.name == NULL) {
+
+            wchar_t wtitle[1012];
+            mbstowcs(wtitle, file_state->filepath, 1012);
+
+            wprintf(L"fucked up name %ls\n", wtitle);
+        }
+
+
+        // wprintf("%ls\n", wtitle);
+
         Music music = {.id = -1,
                        .title = file_state->metadata.name,
                        .fullpath = file_state->filepath};
 
-        s_music_add(ctx->db, &music);
+        if (s_music_add(ctx->db, &music) != TDB_SUCCESS) {
+            continue;
+        }
 
         Vec *albums;
         Album *album;
