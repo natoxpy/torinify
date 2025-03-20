@@ -21,16 +21,12 @@ int thread_playback_handle(void *args) {
     PlaybackContext *ctx = args;
     Queue *q = NULL;
 
-    while (q == NULL && atomic_load(&playback_handle_active)) {
-        thrd_sleep(&(struct timespec){.tv_nsec = 100000000}, NULL);
-
-        if (ctx->active_queue == -1)
+    while (atomic_load(&playback_handle_active)) {
+        if (ctx->active_queue == -1 || ctx->active_queue >= ctx->queues->length)
             continue;
 
         q = vec_get_ref(ctx->queues, ctx->active_queue);
-    }
 
-    while (atomic_load(&playback_handle_active)) {
         thrd_sleep(&(struct timespec){.tv_nsec = 100000000}, NULL);
 
         if (q->feed) {
@@ -53,7 +49,12 @@ int thread_playback_handle(void *args) {
             }
 
             if (pb_q_is_finished(q) && pb_q_is_last(q)) {
-                pb_q_pause(q);
+                if (q->loopstyle == P_LOOP_QUEUE && q->songs->length > 0) {
+                    pb_q_set_active(q, 0);
+                    pb_q_play(q);
+                } else {
+                    pb_q_pause(q);
+                }
             }
         }
     }
@@ -131,7 +132,7 @@ Queue *pb_q_alloc() {
     q->feed = NULL;
     q->songs = vec_init(sizeof(MusicQueue *));
     q->volume = 1;
-    q->loopstyle = P_LOOP_SINGLE;
+    q->loopstyle = P_LOOP_NONE;
 
     return q;
 }
