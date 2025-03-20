@@ -3,6 +3,7 @@
 // Often this will be used directly by torinify_music_player
 // but it can be called externally directly as well
 
+#include "utils/file.h"
 #include <errors/errors.h>
 #include <stdatomic.h>
 #include <stdbool.h>

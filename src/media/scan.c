@@ -1,6 +1,7 @@
 #include "crossplatform/directories.h"
 #include "db/exec/music_table.h"
 #include "db/migrations.h"
+#include "utils/file.h"
 #include <media/scan.h>
 #include <stdint.h>
 #include <stdio.h>

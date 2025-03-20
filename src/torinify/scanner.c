@@ -92,10 +92,7 @@ void sc_scan_context_free_and_commit(ScannerContext *ctx) {
 
             wchar_t wtitle[1012];
             mbstowcs(wtitle, file_state->filepath, 1012);
-
-            wprintf(L"fucked up name %ls\n", wtitle);
         }
-
 
         // wprintf("%ls\n", wtitle);
 

@@ -1,5 +1,6 @@
 #include "db/sql.h"
 #include "torinify/search_engine.h"
+#include "utils/file.h"
 #include <db/migrations.h>
 #include <errors/errors.h>
 #include <libavutil/samplefmt.h>
