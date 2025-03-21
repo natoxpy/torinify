@@ -191,7 +191,8 @@ void scan_file(char *fullpath, MusicContext *music_ctx) {
     if (file_size == -1)
         return;
 
-    TagLib_IOStream *stream = taglib_memory_iostream_new(file_data, file_size);
+    TagLib_IOStream *stream =
+        taglib_memory_iostream_new((const char *)file_data, file_size);
     TagLib_File *file = taglib_file_new_iostream(stream);
 
     if (!file) {
@@ -215,6 +216,12 @@ void scan_file(char *fullpath, MusicContext *music_ctx) {
         music_ctx->artist = strdup(artist);
     if (strcmp(album, "") != 0)
         music_ctx->album = strdup(album);
+
+    TagLib_Complex_Property_Attribute ***properties =
+        taglib_complex_property_get(file, "PICTURE");
+
+    TagLib_Complex_Property_Picture_Data picture;
+    taglib_picture_from_complex_property(properties, &picture);
 
     taglib_file_free(file);
     taglib_tag_free_strings();

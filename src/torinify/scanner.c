@@ -128,11 +128,12 @@ void sc_scan_context_free_and_commit(ScannerContext *ctx) {
         if (artists->length == 0 && file_state->metadata.artist) {
             Artist artist = {.id = 0, .name = file_state->metadata.artist};
             s_artist_add(ctx->db, &artist);
-            s_album_add_artist(ctx->db, album->id, artist.id, ARTIST_TYPE_MAIN);
+            s_album_add_artist(ctx->db, album->id, artist.id,
+                               ARTIST_TYPE_ARTIST);
         } else if (artists->length != 0) {
             Artist *artist_ref = vec_get_ref(artists, 0);
             s_album_add_artist(ctx->db, album->id, artist_ref->id,
-                               ARTIST_TYPE_MAIN);
+                               ARTIST_TYPE_ARTIST);
         }
 
         s_album_vec_free(albums);

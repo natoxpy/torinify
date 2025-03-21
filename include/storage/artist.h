@@ -8,8 +8,11 @@
 #define ARTIST_ALBUM_MTM_TABLE "AlbumArtists"
 #define ARTIST_METADATA_MTM_TABLE "MetadataArtists"
 #define ARTIST_COLLECT_FIELDS "id,name"
-#define ARTIST_TYPE_MAIN "Main Artist"
-#define ARTIST_TYPE_FEATURED "Featured Artist"
+
+#define ARTIST_TYPE_ARTIST "Artist"
+#define ARTIST_TYPE_GUEST "Guest Artist"
+#define ARTIST_TYPE_PERFORMER "Performer"
+#define ARTIST_TYPE_Remixer "Remixer"
 
 typedef struct {
     int id;

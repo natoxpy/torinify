@@ -25,10 +25,18 @@ CREATE TABLE "AlbumArtists" (
     "id" INTEGER PRIMARY KEY,
     "album_id" INTEGER NOT NULL,
     "artist_id" INTEGER NOT NULL,
-    -- 'Main Artist', 'Featured Artist'
+    -- 'Artist', 'Guest Artist', 'Performer', 'Remixer'
     "artist_type" TEXT NOT NULL,
     FOREIGN KEY ("album_id") REFERENCES "Album" ("id") ON DELETE CASCADE,
     FOREIGN KEY ("artist_id") REFERENCES "Artist" ("id") ON DELETE CASCADE
+);
+
+CREATE TABLE "AlbumArtwork" (
+    "id" INTEGER PRIMARY KEY,
+    "album_id" INTEGER NOT NULL,
+    "image" BLOB NOT NULL,
+    "picture_type" TEXT NOT NULL,
+    FOREIGN KEY ("album_id") REFERENCES "Album" ("id") ON DELETE CASCADE
 );
 
 -- ref `MetadataGenres`
