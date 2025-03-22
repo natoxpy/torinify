@@ -31,14 +31,6 @@ CREATE TABLE "AlbumArtists" (
     FOREIGN KEY ("artist_id") REFERENCES "Artist" ("id") ON DELETE CASCADE
 );
 
-CREATE TABLE "AlbumArtwork" (
-    "id" INTEGER PRIMARY KEY,
-    "album_id" INTEGER NOT NULL,
-    "image" BLOB NOT NULL,
-    "picture_type" TEXT NOT NULL,
-    FOREIGN KEY ("album_id") REFERENCES "Album" ("id") ON DELETE CASCADE
-);
-
 -- ref `MetadataGenres`
 CREATE TABLE Genre (
     "id" INTEGER PRIMARY KEY,
@@ -47,18 +39,36 @@ CREATE TABLE Genre (
 
 -- ref `MetadataArtists`
 -- ref `MetadataGenres`
+-- ref `MetadataArtwork`
 CREATE TABLE Metadata (
     "id" INTEGER PRIMARY KEY,
     "year" TEXT -- ISO8601 (year)-(mo)-(da)T
 );
 
--- CREATE TABLE "MetadataArtists" (
---     "id" INTEGER PRIMARY KEY,
---     "metadata_id" INTEGER NOT NULL,
---     "artist_id" INTEGER NOT NULL,
---     FOREIGN KEY ("metadata_id") REFERENCES "Metadata" ("id") ON DELETE CASCADE,
---     FOREIGN KEY ("artist_id") REFERENCES "Artist" ("id") ON DELETE CASCADE
--- );
+-- ref `MetadataArtwork`
+CREATE TABLE Artwork (
+    "id" INTEGER PRIMARY KEY,
+    "image" BLOB NOT NULL,
+    "picture_type" TEXT NOT NULL,
+    "mime_type" TEXT NOT NULL,
+    "Description" TEXT NOT NULL
+);
+
+CREATE TABLE "MetadataArtwork" (
+    "id" INTEGER PRIMARY KEY,
+    "metadata_id" INTEGER NOT NULL,
+    "artkwork_id" INTEGER NOT NULL,
+    FOREIGN KEY ("metadata_id") REFERENCES "Metadata" ("id") ON DELETE CASCADE,
+    FOREIGN KEY ("artkwork_id") REFERENCES "Artwork" ("id") ON DELETE CASCADE
+);
+
+CREATE TABLE "MetadataArtists" (
+    "id" INTEGER PRIMARY KEY,
+    "metadata_id" INTEGER NOT NULL,
+    "artist_id" INTEGER NOT NULL,
+    FOREIGN KEY ("metadata_id") REFERENCES "Metadata" ("id") ON DELETE CASCADE,
+    FOREIGN KEY ("artist_id") REFERENCES "Artist" ("id") ON DELETE CASCADE
+);
 
 CREATE TABLE "MetadataGenres" (
     "id" INTEGER PRIMARY KEY,
@@ -88,6 +98,7 @@ CREATE TABLE "MusicAltTitle" (
     FOREIGN KEY ("title_id") REFERENCES "AlternativeName" ("id")
     ON DELETE CASCADE
 );
+
 -- Many Too Many
 CREATE TABLE "AlbumMusics" (
     "id" INTEGER PRIMARY KEY,
