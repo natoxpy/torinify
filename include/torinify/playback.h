@@ -54,10 +54,10 @@ void pb_musicq_free(MusicQueue *mq);
 Vec *pb_q_all(Queue *q);
 MusicQueue *pb_q_get(Queue *q, int index);
 MusicQueue *pb_q_get_active(Queue *q);
-void pb_q_add(Queue *q, MusicQueue *m);
+T_CODE pb_q_add(Queue *q, MusicQueue *m);
 void pb_q_remove(Queue *q, int index);
 
-void pb_q_set_active(Queue *q, int index);
+T_CODE pb_q_set_active(Queue *q, int index);
 void pb_q_set_volume(Queue *q, float volume);
 
 /// wrapper over `a_set_current_time`
@@ -69,18 +69,23 @@ float pb_q_get_current_time(Queue *q);
 /// wrapper over `a_get_duration`
 float pb_q_get_duration(Queue *q);
 
-void pb_q_next(Queue *q);
-void pb_q_previous(Queue *q);
+T_CODE pb_q_next(Queue *q);
+T_CODE pb_q_previous(Queue *q);
 
 bool pb_q_is_last(Queue *q);
 bool pb_q_is_finished(Queue *q);
 bool pb_q_is_paused(Queue *q);
+bool pb_q_paused(Queue *q);
+T_CODE pb_q_set_src(Queue *q, char *filename);
+T_CODE pb_q_play(Queue *q);
+T_CODE pb_q_pause(Queue *q);
 
 // void pb_q_clean(Queue *q, MusicQueue *m);
 
 void pb_all_q(PlaybackContext *pbc, Vec *qs);
 void pb_get_q(PlaybackContext *pbc, int index);
 void pb_add_q(PlaybackContext *pbc, Queue *q);
+
 // void pb_remove_q(PlaybackContext *pbc, Queue *q);
 // void pb_clean_q(PlaybackContext *pbc);
 
@@ -89,10 +94,10 @@ void pb_add_q(PlaybackContext *pbc, Queue *q);
 /// ===================
 
 /// return less than zero indicate errors
-T_CODE pb_q_set_src(Queue *q, char *filename);
-bool pb_q_paused(Queue *q);
-T_CODE pb_q_play(Queue *q);
-T_CODE pb_q_pause(Queue *q);
+// T_CODE pb_q_set_src(Queue *q, char *filename);
+// bool pb_q_paused(Queue *q);
+// T_CODE pb_q_play(Queue *q);
+// T_CODE pb_q_pause(Queue *q);
 
 /// return less than zero indicate errors
 // T_CODE pb_play_file(PlaybackContext *pbc, char *filename);

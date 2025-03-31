@@ -38,10 +38,12 @@ T_CODE tf_scan_sources();
 
 /// results contain `Struct SearchResult`
 void tf_search(char *query, double threshold, Vec **results);
+/// search context is cache `tgc`
 
 // END - MUSIC
 
-T_CODE tf_init(void);
+T_CODE
+tf_init(void);
 void tf_cleanup(void);
 
 #endif // _TORINIFY_CORE_H

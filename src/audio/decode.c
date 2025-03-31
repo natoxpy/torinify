@@ -1,6 +1,7 @@
 #include <audio/audio.h>
 #include <libavcodec/packet.h>
 #include <libswresample/swresample.h>
+#include <stdio.h>
 
 // static void print_frame(const AVFrame *frame) {
 //     const int n = frame->nb_samples * frame->ch_layout.nb_channels;
@@ -50,13 +51,14 @@ int quick_swr_init(SwrContext **out_swr_ctx, const AVChannelLayout *in_layout,
     return 0;
 }
 
-int a_audio_decode(AAudioContext *au_ctx, AAudioVector **out_au_vec) {
+int a_audio_decode(AAudioContext *au_ctx, AAudioVector **out_au_vec,
+                   DecoderStats *dstats) {
     int ret = 0;
     AAudioVector *audio_vec;
 
     if (!(audio_vec = a_audio_vector_alloc(1))) {
         ret = -1;
-        goto end;
+        goto clean;
     }
 
     AVPacket *packet = av_packet_alloc();
@@ -64,7 +66,8 @@ int a_audio_decode(AAudioContext *au_ctx, AAudioVector **out_au_vec) {
 
     if (!packet || !frame) {
         ret = -1;
-        goto end;
+        error_log("Packet or Frames not alloced");
+        goto clean;
     }
 
     SwrContext *swr_ctx;
@@ -73,8 +76,10 @@ int a_audio_decode(AAudioContext *au_ctx, AAudioVector **out_au_vec) {
         &swr_ctx, &au_ctx->codec_ctx->ch_layout, au_ctx->codec_ctx->sample_rate,
         au_ctx->fmt_ctx->streams[au_ctx->stream_index]->codecpar->format);
 
-    if (ret < 0)
-        goto end;
+    if (ret < 0) {
+        error_log("SWR failed to init");
+        goto clean;
+    }
 
     while (1) {
         if ((ret = av_read_frame(au_ctx->fmt_ctx, packet)) < 0)
@@ -85,18 +90,31 @@ int a_audio_decode(AAudioContext *au_ctx, AAudioVector **out_au_vec) {
             continue;
         }
 
-        if ((ret = avcodec_send_packet(au_ctx->codec_ctx, packet)) < 0)
-            goto end;
+        if (dstats)
+            dstats->total_packets++;
+
+        if ((ret = avcodec_send_packet(au_ctx->codec_ctx, packet)) < 0) {
+            error_log("AVCoded Packet failed to send");
+            av_packet_unref(packet);
+            if (dstats)
+                dstats->lost_packets++;
+            continue;
+        }
 
         while (ret >= 0) {
             ret = avcodec_receive_frame(au_ctx->codec_ctx, frame);
             if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
                 break;
-            } else if (ret < 0)
-                goto end;
+            } else if (ret < 0) {
+                error_log("AVCoded Invalid packet");
+                goto clean;
+            }
 
             if (ret > 0)
                 continue;
+
+            if (dstats)
+                dstats->packets++;
 
             uint8_t *output_buffer = NULL;
             int output_nb_samples = frame->nb_samples;
@@ -128,7 +146,7 @@ int a_audio_decode(AAudioContext *au_ctx, AAudioVector **out_au_vec) {
     *out_au_vec = audio_vec;
     ret = 0;
 
-end:
+clean:
     av_packet_free(&packet);
     av_frame_free(&frame);
     swr_free(&swr_ctx);

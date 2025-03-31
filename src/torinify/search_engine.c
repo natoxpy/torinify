@@ -217,6 +217,7 @@ void *thread_compute_search_process(void *search_ctx_data) {
     return results;
 }
 
+/*
 void s_process_search_multi(Vec *search_ctx, char *query, Vec **out_results,
                             double threshold, int threads) {
     Vec *all_results =
@@ -270,3 +271,4 @@ cleanup:
         // vec_free(ctx_vec);
     }
 }
+*/

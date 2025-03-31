@@ -848,7 +848,12 @@ int search_page(AppContext *app) {
         mq->fullpath = strdup(music->fullpath);
         mq->id = music->id;
 
-        pb_q_add(q, mq);
+        if (pb_q_add(q, mq) != T_SUCCESS) {
+            text_copy(&app->logmsg, "Error while adding music to queue");
+            pb_musicq_free(mq);
+            s_music_free(music);
+            return 0;
+        }
 
         if (music) {
             char txt[255];
@@ -887,8 +892,7 @@ int search_page(AppContext *app) {
 // int discography_songs(AppContext *app) {}
 
 int discography_page(AppContext *app) {
-    printf("Discography - Albums \n");
-    printf("[1] Artists | [2] Songs\n");
+    printf("Discography - \n");
     printf("[Esc] Return\n");
 
     int height;

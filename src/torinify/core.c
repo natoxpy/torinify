@@ -107,7 +107,7 @@ T_CODE tf_set_src(char *filename) {
     int nb_channels = audio_ctx->codec_ctx->ch_layout.nb_channels;
 
     AAudioVector *au_vec;
-    if (a_audio_decode(audio_ctx, &au_vec) != 0)
+    if (a_audio_decode(audio_ctx, &au_vec, NULL) != 0)
         fprintf(stderr, "audio could not be decoded");
     a_audio_free_context(audio_ctx);
 

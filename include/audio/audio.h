@@ -72,6 +72,12 @@ int a_audio_context_init(uint8_t *in_data, size_t in_size,
 #ifndef _AUDIO_DECODE_H
 #define _AUDIO_DECODE_H
 
+typedef struct {
+    size_t packets;
+    size_t total_packets;
+    size_t lost_packets;
+} DecoderStats;
+
 /// a_audio_context_free() to free the struct completely
 ///
 /// return `NULL` if allocation fails
@@ -80,7 +86,8 @@ void a_audio_free_context(AAudioContext *audio_ctx);
 
 /// return more than zero are the size of the output data,
 /// return less than zero indicate errors
-int a_audio_decode(AAudioContext *au_ctx, AAudioVector **au_vec);
+int a_audio_decode(AAudioContext *au_ctx, AAudioVector **au_vec,
+                   DecoderStats *dstats);
 /// return more than zero are the size of the output data,
 /// return less than zero indicate errors
 int a_resample(uint8_t *in_data, uint8_t *out_data);

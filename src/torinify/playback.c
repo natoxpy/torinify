@@ -160,13 +160,16 @@ MusicQueue *pb_q_get(Queue *q, int index) {
 
 MusicQueue *pb_q_get_active(Queue *q) { return pb_q_get(q, q->active); }
 
-void pb_q_add(Queue *q, MusicQueue *m) {
+T_CODE pb_q_add(Queue *q, MusicQueue *m) {
     if (q->songs->length == 0) {
         q->active = 0;
-        pb_q_set_src(q, m->fullpath);
+        int ret = pb_q_set_src(q, m->fullpath);
+        if (ret != T_SUCCESS)
+            return ret;
     }
 
     vec_push(q->songs, &m);
+    return T_SUCCESS;
 }
 
 void pb_q_remove(Queue *q, int index) {
@@ -185,11 +188,11 @@ void pb_q_remove(Queue *q, int index) {
     vec_remove(q->songs, index);
 }
 
-void pb_q_set_active(Queue *q, int index) {
+T_CODE pb_q_set_active(Queue *q, int index) {
 
     MusicQueue *mq = pb_q_get(q, index);
     if (mq == NULL)
-        return;
+        return T_SUCCESS;
 
     if (q->feed) {
         a_playback_feed_free(q->feed);
@@ -197,23 +200,24 @@ void pb_q_set_active(Queue *q, int index) {
     }
 
     q->active = index;
-    pb_q_set_src(q, mq->fullpath);
+    return pb_q_set_src(q, mq->fullpath);
 }
 
-void pb_q_next(Queue *q) {
+T_CODE pb_q_next(Queue *q) {
     if (q->active == -1 || q->songs->length - 1 == q->active)
-        return;
+        return T_SUCCESS;
 
-    pb_q_set_active(q, q->active + 1);
+    return pb_q_set_active(q, q->active + 1);
     pb_q_play(q);
 }
 
-void pb_q_previous(Queue *q) {
+T_CODE pb_q_previous(Queue *q) {
     if (q->active == -1 || q->active == 0)
-        return;
+        return T_SUCCESS;
 
-    pb_q_set_active(q, q->active - 1);
+    int ret = pb_q_set_active(q, q->active - 1);
     pb_q_play(q);
+    return ret;
 }
 
 void pb_add_q(PlaybackContext *pbc, Queue *q) {
@@ -228,15 +232,24 @@ T_CODE pb_q_set_src(Queue *q, char *filename) {
     int size = f_read_file(filename, &data);
 
     AAudioContext *audio_ctx;
-    if (a_audio_context_init(data, size, &audio_ctx) != 0)
-        fprintf(stderr, "audio context init");
+    if (a_audio_context_init(data, size, &audio_ctx) != 0) {
+        error_log("audio context init");
+        q->feed = NULL;
+        q->active = -1;
+        return T_FAIL;
+    }
 
     int sample_rate = audio_ctx->codec_ctx->sample_rate;
     int nb_channels = audio_ctx->codec_ctx->ch_layout.nb_channels;
 
     AAudioVector *au_vec;
-    if (a_audio_decode(audio_ctx, &au_vec) != 0)
-        fprintf(stderr, "audio could not be decoded");
+    if (a_audio_decode(audio_ctx, &au_vec, NULL) != 0) {
+        error_log("audio could not be decoded");
+        q->feed = NULL;
+        q->active = -1;
+        a_audio_free_context(audio_ctx);
+        return T_FAIL;
+    }
     a_audio_free_context(audio_ctx);
 
     APlaybackFeed *pbfeed;
