@@ -21,6 +21,8 @@ typedef struct AAudioContextBuffer AAudioContextBuffer;
 struct AAudioContextBuffer {
     uint8_t *ptr;
     size_t length;
+    size_t len;
+    size_t pos;
 };
 
 /// If no capacity is given, it will default to `one`

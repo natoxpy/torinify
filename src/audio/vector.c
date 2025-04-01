@@ -76,6 +76,8 @@ AAudioContextBuffer *a_audio_vector_as_buffer(AAudioVector *au_vec) {
 
     au_buf->ptr = au_vec->ptr;
     au_buf->length = au_vec->length;
+    au_buf->len = au_vec->length;
+    au_buf->pos = 0;
 
     return au_buf;
 }

@@ -16,9 +16,42 @@ static int read_packet(void *opaque, uint8_t *buf, int buf_size) {
     /* copy internal buffer data to buf */
     memcpy(buf, bd->ptr, buf_size);
     bd->ptr += buf_size;
+    bd->pos += buf_size;
     bd->length -= buf_size;
 
+    printf("Reading Data %d\n", buf_size);
+
     return buf_size;
+}
+
+static int64_t seek_packet(void *opaque, int64_t offset, int whence) {
+    AAudioContextBuffer *bd = (AAudioContextBuffer *)opaque;
+
+    if (whence == AVSEEK_SIZE) {
+        return bd->len;
+    }
+
+    int64_t noffset;
+
+    switch (whence) {
+    case SEEK_SET:
+        noffset = offset;
+        break;
+    case SEEK_CUR:
+        noffset = (int64_t)(bd->pos + offset);
+        break;
+    case SEEK_END:
+        noffset = (int64_t)(bd->len + offset);
+        break;
+    default:
+        return -1;
+    }
+
+    if (noffset < 0 || noffset > bd->len) {
+        return -1;
+    }
+
+    return noffset;
 }
 
 AAudioContext *a_audio_alloc_context() {
@@ -80,7 +113,7 @@ int fmt_ctx_audio_ctx(AAudioContext *audio_ctx, AAudioContextBuffer *au_buf) {
 
     AVIOContext *avio_ctx =
         avio_alloc_context(avio_ctx_buffer, avio_ctx_buffer_size, 0, au_buf,
-                           &read_packet, NULL, NULL);
+                           &read_packet, NULL, &seek_packet);
 
     if (avio_ctx == NULL) {
         ret = -1;

@@ -1,33 +1,10 @@
 #include <audio/audio.h>
 #include <libavcodec/packet.h>
+#include <libavformat/avformat.h>
+#include <libavutil/avutil.h>
 #include <libswresample/swresample.h>
+#include <stdint.h>
 #include <stdio.h>
-
-// static void print_frame(const AVFrame *frame) {
-//     const int n = frame->nb_samples * frame->ch_layout.nb_channels;
-//     const uint16_t *p = (uint16_t *)frame->data[0];
-//     const uint16_t *p_end = p + n;
-//
-//     while (p < p_end) {
-//         fputc(*p & 0xff, stdout);
-//         fputc(*p >> 8 & 0xff, stdout);
-//         p++;
-//     }
-//     fflush(stdout);
-// }
-
-static void print_frame(const uint8_t *p, const int n) {
-    // const int n = frame->nb_samples * frame->ch_layout.nb_channels;
-    const uint8_t *p_end = p + n;
-
-    while (p < p_end) {
-        // fputc(*p, stdout);
-        fputc(*p & 0xff, stdout);
-        // fputc(*p >> 8 & 0xff, stdout);
-        p++;
-    }
-    fflush(stdout);
-}
 
 int quick_swr_init(SwrContext **out_swr_ctx, const AVChannelLayout *in_layout,
                    int in_sample, enum AVSampleFormat in_format) {
@@ -80,6 +57,17 @@ int a_audio_decode(AAudioContext *au_ctx, AAudioVector **out_au_vec,
         error_log("SWR failed to init");
         goto clean;
     }
+
+    int seek_seconds = 10;
+
+    int64_t timestamp =
+        av_rescale_q(seek_seconds * AV_TIME_BASE, AV_TIME_BASE_Q,
+                     au_ctx->fmt_ctx->streams[au_ctx->stream_index]->time_base);
+
+    av_seek_frame(au_ctx->fmt_ctx, au_ctx->stream_index, timestamp,
+                  AVSEEK_FLAG_BACKWARD);
+
+    avcodec_flush_buffers(au_ctx->codec_ctx);
 
     while (1) {
         if ((ret = av_read_frame(au_ctx->fmt_ctx, packet)) < 0)
