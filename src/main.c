@@ -1431,6 +1431,11 @@ int playback_page(AppContext *app_ctx) {
         return 0;
     }
 
+    if (q->songs->length > 0 && (is_enter(key) || (key.keytype != KEY_STANDARD || key.ch.standard == 'p'))) {
+        pb_q_set_active(q, app_ctx->selected);
+        pb_q_play(q);
+    }
+
     if (key.keytype != KEY_STANDARD)
         return 0;
 
@@ -1442,11 +1447,6 @@ int playback_page(AppContext *app_ctx) {
         if (q->songs->length != 0) {
             pb_q_set_active(q, app_ctx->selected);
         }
-    }
-
-    if (key.ch.standard == 'p' && q->songs->length > 0) {
-        pb_q_set_active(q, app_ctx->selected);
-        pb_q_play(q);
     }
 
     if (key.ch.standard == '[' && q->feed) {
