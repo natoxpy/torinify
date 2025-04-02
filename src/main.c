@@ -1431,7 +1431,7 @@ int playback_page(AppContext *app_ctx) {
         return 0;
     }
 
-    if (q->songs->length > 0 && (is_enter(key) || (key.keytype != KEY_STANDARD || key.ch.standard == 'p'))) {
+    if (q->songs->length > 0 && (is_enter(key) || (key.keytype == KEY_STANDARD && key.ch.standard == 'p'))) {
         pb_q_set_active(q, app_ctx->selected);
         pb_q_play(q);
     }
