@@ -92,25 +92,71 @@ char *strsep(char **stringp, const char *delim) {
     return token_start;
 }
 
+Vec *split_string(char *copy_string, char *delimiter) {
+    char splitter[] = {'-', '(', ')', '.', ';'};
+
+    char *out;
+
+    Vec *words = vec_init_with_capacity(sizeof(char **), 8);
+    Vec *fw = vec_init_with_capacity(sizeof(char **), 8);
+
+    while ((out = strsep(&copy_string, delimiter)) != NULL) {
+        vec_push(words, &out);
+    }
+
+    for (int i = 0; i < words->length; i++) {
+        char *s = vec_get_ref(words, i);
+        char *start = s;
+        char *ptr = s;
+
+        if (*ptr == '\0')
+            continue;
+
+        while (*ptr != '\0') {
+            for (int y = 0; y < sizeof(splitter) / sizeof(char); y++) {
+                char splt = splitter[y];
+
+                if (*ptr == splt) {
+                    char tmp_ptr = *ptr;
+
+                    *ptr = '\0';
+
+                    if (ptr - start > 0)
+                        vec_push(fw, &start);
+
+                    start = ptr + 1;
+                }
+            }
+
+            ptr++;
+        }
+
+        if (ptr - start > 0)
+            vec_push(fw, &start);
+    }
+
+    vec_free(words);
+    return fw;
+}
+
+void split_string_free(Vec *v, char *tfree) {
+    free(tfree);
+    vec_free(v);
+}
+
 double word_based_similarity(char *s, char *t) {
-    char *s_copy, *t_copy, *s_tofree, *t_tofree, *out;
     Vec *words_s, *words_t;
     double total_score = 0;
     int calculations = 0;
 
+    char *s_tofree, *s_copy, *t_tofree, *t_copy;
+
     s_tofree = s_copy = strdup(s);
     t_tofree = t_copy = strdup(t);
 
-    words_s = vec_init_with_capacity(sizeof(char **), 8);
-    words_t = vec_init_with_capacity(sizeof(char **), 8);
-
-    while ((out = strsep(&s_copy, " ")) != NULL) {
-        vec_push(words_s, &out);
-    }
-
-    while ((out = strsep(&t_copy, " ")) != NULL) {
-        vec_push(words_t, &out);
-    }
+    char *delimiter = " ";
+    words_s = split_string(s_copy, delimiter);
+    words_t = split_string(t_copy, delimiter);
 
     Vec *opts[2] = {words_s, words_t};
 
@@ -120,12 +166,17 @@ double word_based_similarity(char *s, char *t) {
         Vec *b = opts[1 - l];
 
         for (int i = 0; i < m->length; i++) {
-            char *m_str = *((void **)vec_get(m, i));
+            char *m_str = vec_get_ref(m, i);
+            if (*m_str == '\xFF')
+                m_str++;
 
             double best = 0;
 
             for (int j = 0; j < b->length; j++) {
-                char *b_str = *((void **)vec_get(b, j));
+                char *b_str = vec_get_ref(b, j);
+                if (*b_str == '\xFF')
+                    b_str++;
+
                 double score = similarity_score(m_str, b_str);
 
                 if (score > best)
@@ -137,15 +188,13 @@ double word_based_similarity(char *s, char *t) {
         }
     }
 
-    free(s_tofree);
-    free(t_tofree);
-    vec_free(words_s);
-    vec_free(words_t);
+    split_string_free(words_s, s_tofree);
+    split_string_free(words_t, t_tofree);
 
     return total_score / (calculations > 0 ? calculations : 1);
 }
 
-// TODO: AI CODE BROKEN AS SHIT, FIX IT
+/*
 double o_word_based_similarity(const char *s, const char *t) {
     char *s_copy = strdup(s);
     char *t_copy = strdup(t);
@@ -205,3 +254,4 @@ double o_word_based_similarity(const char *s, const char *t) {
 
     return total_score / (comparisons > 0 ? comparisons : 1);
 }
+*/

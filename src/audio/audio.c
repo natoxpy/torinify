@@ -19,8 +19,6 @@ static int read_packet(void *opaque, uint8_t *buf, int buf_size) {
     bd->pos += buf_size;
     bd->length -= buf_size;
 
-    printf("Reading Data %d\n", buf_size);
-
     return buf_size;
 }
 

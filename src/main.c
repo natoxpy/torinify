@@ -12,6 +12,12 @@
 #include <torinify/core.h>
 #include <torinify/search_engine.h>
 
+#define HOME_PAGE 1
+#define SEARCH_PAGE 2
+#define PLAYBACK_PAGE 3
+#define MEDIA_PAGE 4
+#define DISCOGRAPHY_PAGE 5
+
 size_t count_utf8_code_points(const char *s) {
     size_t count = 0;
     while (*s) {
@@ -495,6 +501,8 @@ typedef struct {
     Vec *search_results;
     Text general_use;
     Vec *search_ctx;
+    bool show_help;
+    int return_page;
 } AppContext;
 
 AppContext init_app() {
@@ -514,6 +522,8 @@ AppContext init_app() {
                         .str = malloc(sizeof(char *) * 1012)},
         .search_results = NULL,
         .search_ctx = NULL,
+        .show_help = false,
+        .return_page = HOME_PAGE,
     };
 
     app_ctx.search_query.str[0] = '\0';
@@ -575,7 +585,7 @@ void text_copy(Text *text, char *str) {
     text->str[text->len] = '\0';
 }
 
-int home_page();
+int home_page(AppContext *app);
 int search_page(AppContext *app);
 int discography_page(AppContext *app);
 int media_page(AppContext *app);
@@ -620,21 +630,20 @@ int main() {
 
         if (app_ctx.logmsg.len != 0) {
             printf("%s - ", app_ctx.logmsg.str);
-            // text_empty(&app_ctx.logmsg);
         }
 
         switch (app_ctx.page) {
-        case 1:
+        case HOME_PAGE:
             printf("Home\n");
-            redirect_to = home_page();
+            redirect_to = home_page(&app_ctx);
 
             break;
 
-        case 2:
+        case SEARCH_PAGE:
             redirect_to = search_page(&app_ctx);
             break;
 
-        case 3:
+        case PLAYBACK_PAGE:
             redirect_to = playback_page(&app_ctx);
 
 #ifdef _WIN32
@@ -645,12 +654,12 @@ int main() {
 
             break;
 
-        case 4:
+        case MEDIA_PAGE:
             printf("Media");
             redirect_to = media_page(&app_ctx);
             break;
 
-        case 5:
+        case DISCOGRAPHY_PAGE:
             redirect_to = discography_page(&app_ctx);
             break;
 
@@ -688,7 +697,7 @@ int main() {
 
 /// === HOME PAGE ===
 
-int home_page() {
+int home_page(AppContext *app_ctx) {
     printf("[Esc] Exit\n");
     printf("[1] Search\n");
     printf("[2] Playback\n");
@@ -716,16 +725,18 @@ int home_page() {
         return -1;
     }
 
+    app_ctx->return_page = HOME_PAGE;
+
     if (key.keytype == KEY_STANDARD) {
         switch (key.ch.standard) {
         case '1':
-            return 2;
+            return SEARCH_PAGE;
         case '2':
-            return 3;
+            return PLAYBACK_PAGE;
         case '3':
-            return 4;
+            return MEDIA_PAGE;
         case '4':
-            return 5;
+            return DISCOGRAPHY_PAGE;
         default:
             return -2;
         }
@@ -816,7 +827,7 @@ int search_page(AppContext *app) {
 
     Key key = readkey();
     if (is_esc(key))
-        return 1;
+        return app->return_page;
 
     if (key.keytype == KEY_ARROW) {
         handle_arrow_key(key, app);
@@ -1368,14 +1379,16 @@ int playback_page(AppContext *app_ctx) {
     oss_get_terminal_size(&width, NULL);
 
     printf("torinify - Playback - %s - %s \n", song_status, song_name);
-    printf("[Esc] Return \n");
+    if (app_ctx->show_help) {
+        printf("[Esc] Return \n");
 
-    printf("[p] Play Song | [<Space>] Play/Pause | [< | >] Seek | [<[> | <]>] "
-           "Volume | "
-           "[r] Remove from queue | [l] toggle loop options \n");
+        printf(
+            "[p] Play Song | [<Space>] Play/Pause | [< | >] Seek | [<[> | <]>] "
+            "Volume | "
+            "[r] Remove from queue | [l] toggle loop options | [/] Search page\n");
+    }
 
-    printf("----------- \n");
-    printf(" Q ");
+    printf("----- Queue -----");
 
     switch (q->loopstyle) {
     case P_LOOP_NONE:
@@ -1453,6 +1466,15 @@ int playback_page(AppContext *app_ctx) {
             l = P_LOOP_NONE;
 
         q->loopstyle = l;
+    }
+
+    if (key.ch.standard == 'h') {
+        app_ctx->show_help = !app_ctx->show_help;
+    }
+
+    if (key.ch.standard == '/') {
+        app_ctx->return_page = PLAYBACK_PAGE;
+        return SEARCH_PAGE;
     }
 
     return 0;

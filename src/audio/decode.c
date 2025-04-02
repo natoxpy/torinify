@@ -58,16 +58,18 @@ int a_audio_decode(AAudioContext *au_ctx, AAudioVector **out_au_vec,
         goto clean;
     }
 
-    int seek_seconds = 10;
+    // double duration_sec = au_ctx->fmt_ctx->duration / (double)AV_TIME_BASE;
 
-    int64_t timestamp =
-        av_rescale_q(seek_seconds * AV_TIME_BASE, AV_TIME_BASE_Q,
-                     au_ctx->fmt_ctx->streams[au_ctx->stream_index]->time_base);
+    // int seek_seconds = 0;
 
-    av_seek_frame(au_ctx->fmt_ctx, au_ctx->stream_index, timestamp,
-                  AVSEEK_FLAG_BACKWARD);
+    // int64_t timestamp =
+    //     av_rescale_q(seek_seconds * AV_TIME_BASE, AV_TIME_BASE_Q,
+    //                  au_ctx->fmt_ctx->streams[au_ctx->stream_index]->time_base);
 
-    avcodec_flush_buffers(au_ctx->codec_ctx);
+    // av_seek_frame(au_ctx->fmt_ctx, au_ctx->stream_index, timestamp,
+    //               AVSEEK_FLAG_BACKWARD);
+
+    // avcodec_flush_buffers(au_ctx->codec_ctx);
 
     while (1) {
         if ((ret = av_read_frame(au_ctx->fmt_ctx, packet)) < 0)
