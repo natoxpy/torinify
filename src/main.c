@@ -1385,7 +1385,8 @@ int playback_page(AppContext *app_ctx) {
         printf(
             "[p] Play Song | [<Space>] Play/Pause | [< | >] Seek | [<[> | <]>] "
             "Volume | "
-            "[r] Remove from queue | [l] toggle loop options | [/] Search page\n");
+            "[r] Remove from queue | [l] toggle loop options | [/] Search "
+            "page\n");
     }
 
     printf("----- Queue -----");
@@ -1395,10 +1396,10 @@ int playback_page(AppContext *app_ctx) {
         printf("\n");
         break;
     case P_LOOP_SINGLE:
-        printf("- loop single \n");
+        printf("- repeat \n");
         break;
     case P_LOOP_QUEUE:
-        printf("- loop queue \n");
+        printf("- repeat queue \n");
     }
 
     if (q->songs->length > 0)
@@ -1431,7 +1432,9 @@ int playback_page(AppContext *app_ctx) {
         return 0;
     }
 
-    if (q->songs->length > 0 && (is_enter(key) || (key.keytype == KEY_STANDARD && key.ch.standard == 'p'))) {
+    if (q->songs->length > 0 &&
+        (is_enter(key) ||
+         (key.keytype == KEY_STANDARD && key.ch.standard == 'p'))) {
         pb_q_set_active(q, app_ctx->selected);
         pb_q_play(q);
     }
