@@ -1,3 +1,14 @@
+
+///
+/// main.c - Implementation of torinify client
+/// Copyright (c) 2025 Author. All Rights Reserved.
+/// License: MIT
+///
+/// Description:
+///     Initial implementation of a TUI focused on implementing all of the
+///     features the torinify library offers.
+///
+
 #include "db/helpers.h"
 #include "storage/album.h"
 #include "storage/artist.h"
