@@ -84,7 +84,7 @@ FileState *file_state_init() {
     fs->filepath = NULL;
     fs->filename = NULL;
     fs->metadata.name = NULL;
-    fs->metadata.artist = NULL;
+    fs->metadata.artists = NULL;
     fs->metadata.album = NULL;
 
     return fs;
@@ -212,10 +212,27 @@ void scan_file(char *fullpath, MusicContext *music_ctx) {
 
     if (strcmp(title, "") != 0)
         music_ctx->name = strdup(title);
-    if (strcmp(artist, "") != 0)
-        music_ctx->artist = strdup(artist);
+
     if (strcmp(album, "") != 0)
         music_ctx->album = strdup(album);
+
+    /// === Get multiple artists if multiple artists are found ===
+
+    if (strcmp(artist, "") != 0) {
+        char *artists = strdup(artist);
+
+        char *token = strtok(artists, "/");
+
+        while (token != NULL) {
+            char *token_cpy = strdup(token);
+            vec_push(music_ctx->artists, &token_cpy);
+            token = strtok(NULL, "/");
+        }
+
+        free(artists);
+    }
+
+    /// === Get cover image ===
 
     TagLib_Complex_Property_Attribute ***properties =
         taglib_complex_property_get(file, "PICTURE");
@@ -235,7 +252,7 @@ int scan_thread(void *arg) {
     for (int i = 0; i < thread_ctx->data->length; i++) {
         FileState *file_state = vec_get_ref(thread_ctx->data, i);
 
-        MusicContext mc = {NULL, NULL, NULL};
+        MusicContext mc = {NULL, .artists = vec_init(sizeof(char *)), NULL};
 
         mtx_lock(thread_ctx->mutex);
 
@@ -341,8 +358,13 @@ void finalize_scan(ScanContext *scan_ctx) {
         if (fs->metadata.name != 0)
             free(fs->metadata.name);
 
-        if (fs->metadata.artist != 0)
-            free(fs->metadata.artist);
+        if (fs->metadata.artists) {
+            for (int i = 0; i < fs->metadata.artists->length; i++) {
+                char *s = vec_get_ref(fs->metadata.artists, i);
+                free(s);
+            }
+            vec_free(fs->metadata.artists);
+        }
 
         if (fs->metadata.album != 0)
             free(fs->metadata.album);

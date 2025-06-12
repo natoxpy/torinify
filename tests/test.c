@@ -1,6 +1,7 @@
 ﻿#include "./db.c"
 #include "./sh.c"
 #include <stdio.h>
+#include <stdlib.h>
 #include <taglib/tag_c.h>
 #include <unistd.h>
 
@@ -9,6 +10,23 @@ int main() {
 
     db_tests();
     sh_tests();
+
+    Vec *a = vec_init(sizeof(char *));
+
+    char *b = malloc(sizeof(char *) * 10);
+    b[0] = 'h';
+    b[1] = 'e';
+    b[2] = '\0';
+
+    vec_push(a, &b);
+
+    char *s = vec_get_ref(a, 0);
+
+    printf("'%s'\n", s);
+
+    free(s);
+
+    vec_free(a);
 
     return 0;
     // TagLib_File *file = taglib_file_new(

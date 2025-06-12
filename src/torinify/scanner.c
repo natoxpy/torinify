@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <taglib/tag_c.h>
 
 ScannerContext *sc_scan_start_single_root(sqlite3 *db, int root_id) {
     Vec *roots = vec_init(sizeof(char *));
@@ -122,22 +123,27 @@ void sc_scan_context_free_and_commit(ScannerContext *ctx) {
             album = album_ref;
         }
 
-        Vec *artists;
-        s_artist_get_by_name(ctx->db, file_state->metadata.artist, &artists);
+        for (int y = 0; y < file_state->metadata.artists->length; y++) {
+            char *artist_name = vec_get_ref(file_state->metadata.artists, y);
 
-        if (artists->length == 0 && file_state->metadata.artist) {
-            Artist artist = {.id = 0, .name = file_state->metadata.artist};
-            s_artist_add(ctx->db, &artist);
-            s_album_add_artist(ctx->db, album->id, artist.id,
-                               ARTIST_TYPE_ARTIST);
-        } else if (artists->length != 0) {
-            Artist *artist_ref = vec_get_ref(artists, 0);
-            s_album_add_artist(ctx->db, album->id, artist_ref->id,
-                               ARTIST_TYPE_ARTIST);
+            Vec *artists;
+            s_artist_get_by_name(ctx->db, artist_name, &artists);
+
+            if (artists->length == 0 && artist_name) {
+                Artist artist = {.id = 0, .name = artist_name};
+                s_artist_add(ctx->db, &artist);
+                s_album_add_artist(ctx->db, album->id, artist.id,
+                                   ARTIST_TYPE_ARTIST);
+            } else if (artists->length != 0) {
+                Artist *artist_ref = vec_get_ref(artists, 0);
+                s_album_add_artist(ctx->db, album->id, artist_ref->id,
+                                   ARTIST_TYPE_ARTIST);
+            }
+
+            s_artist_vec_free(artists);
         }
 
         s_album_vec_free(albums);
-        s_artist_vec_free(artists);
     }
 
     dbh_commit_transaction(ctx->db);

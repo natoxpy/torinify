@@ -14,7 +14,7 @@
 
 typedef struct {
     char *name;
-    char *artist;
+    Vec *artists;
     char *album;
 } MusicContext;
 
