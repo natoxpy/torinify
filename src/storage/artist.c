@@ -2,6 +2,7 @@
 #include "db/exec.h"
 #include "db/helpers.h"
 #include "db/sql_macros.h"
+#include <storage/album.h>
 
 Artist *s_artist_alloc() {
     Artist *artist = malloc(sizeof(Artist));
@@ -75,4 +76,17 @@ TDB_CODE s_artist_delete(sqlite3 *db, int artist_id) {
 TDB_CODE s_artist_update_name(sqlite3 *db, int artist_id, char *name) {
     char *sql = SQL_UPDATE(ARTIST_TABLE, "name = ?", "WHERE", "id = ?");
     SQL_GENERIC_UPDATE(sql, SQL_BINDS(BIND_STR(name), BIND_INT(artist_id)))
+}
+
+// ======
+// ALBUM RELATIONSHIP MANY TO MANY
+// ======
+
+TDB_CODE s_artist_get_all_albums(sqlite3 *db, int artist_id, Vec **albums) {
+    char *s = SQL_SELECT(ALBUM_TABLE, ALBUM_COLLECT_FIELDS, "WHERE id IN",
+                         SQL_INNER_SELECT(ALBUM_ARTIST_MTM_TABLE, "album_id",
+                                          "WHERE", "artist_id = ?"));
+
+    SQL_GENERIC_GET_ALL_WBINDS(s, SQL_BINDS(BIND_INT(artist_id)), albums,
+                               s_album_collect, Album)
 }

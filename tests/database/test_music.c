@@ -123,6 +123,7 @@ void test_music_get(sqlite3 *db, bool *passed, char **name, char **log) {
 
 clean:
     s_music_free(music);
+    s_music_free(music2);
 
     *passed = true;
 }

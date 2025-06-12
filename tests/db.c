@@ -42,6 +42,7 @@ void db_tests() {
                            &test_album_update,
                            &test_album_music_add,
                            &test_album_artist_add,
+                           &test_get_artist_albums,
                            &test_artist_get,
                            &test_artist_get_all,
                            &test_artist_update,

@@ -9,6 +9,9 @@
 ///     features the torinify library offers.
 ///
 
+#include <bits/types/mbstate_t.h>
+#define _GNU_SOURCE
+
 #include "db/helpers.h"
 #include "storage/album.h"
 #include "storage/artist.h"
@@ -16,12 +19,15 @@
 #include "torinify/playback.h"
 #include "torinify/scanner.h"
 #include "utils/generic_vec.h"
+#include <locale.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <threads.h>
 #include <torinify/core.h>
 #include <torinify/search_engine.h>
+#include <wchar.h>
 
 #define HOME_PAGE 1
 #define SEARCH_PAGE 2
@@ -502,10 +508,19 @@ void cleanup() {
 
 #ifndef _APP_MAIN_C
 #define _APP_MAIN_C
+
 typedef struct {
     int page;
     int subpage;
+
+    // selected0 and selected1 mostly exist for the discography page
     int selected;
+
+    // used to determine which selector to use
+    int selected_cursor;
+    int selected1;
+    int selected2;
+
     int max_selected;
     Text logmsg;
     Text search_query;
@@ -523,6 +538,9 @@ AppContext init_app() {
     AppContext app_ctx = {
         .page = 1,
         .selected = 0,
+        .selected_cursor = 0,
+        .selected1 = 0,
+        .selected2 = 0,
         .max_selected = 0,
         .logmsg = {.len = 0, .cap = 1012, .str = malloc(sizeof(char *) * 1012)},
         .search_query = {.len = 0,
@@ -913,55 +931,237 @@ int search_page(AppContext *app) {
 // int discography_artists(AppContext *app) {}
 // int discography_songs(AppContext *app) {}
 
+int utf8_display_width(const char *s) {
+    setlocale(LC_CTYPE, "");
+    mbstate_t st = {0};
+    wchar_t wc;
+    size_t len;
+    int total_width = 0;
+
+    while ((len = mbrtowc(&wc, s, MB_CUR_MAX, &st)) > 0) {
+        int w = wcwidth(wc);
+        if (w < 0)
+            w = 0;
+        total_width += w;
+        s += len;
+    }
+    return total_width;
+}
+
+int utf8_str_get(const char *s, char *s_out, size_t index) {
+    mbstate_t st = {0};
+    wchar_t wc;
+    size_t len;
+    size_t s_index = 0;
+
+    while ((len = mbrtowc(&wc, s, MB_CUR_MAX, &st)) > 0) {
+        if (s_index == index) {
+            int l = wcrtomb(s_out, wc, &st);
+            if (l < 0)
+                return -1;
+            s_out[l] = '\0';
+            return l;
+        }
+
+        s_index += 1;
+        s += len;
+    }
+
+    return -1;
+}
+
+/// @returns number of characters printed
+int print_until_limit(char *s, size_t limit) {
+    int width_accumulated = 0;
+    int string_width = utf8_display_width(s);
+
+    for (int y = 0; y < string_width; y++) {
+        char mb_char[15];
+        utf8_str_get(s, mb_char, y);
+        int temporary_width = utf8_display_width(mb_char);
+        if (width_accumulated + temporary_width > limit)
+            break;
+
+        width_accumulated += temporary_width;
+        printf("%s", mb_char);
+    }
+
+    return width_accumulated;
+}
+
+void discography_page_artists_panel(AppContext *app, Vec *artists, int y) {
+    int width;
+    oss_get_terminal_size(&width, NULL);
+    int limit = width / 3;
+
+    if (y > artists->length - 1) {
+        for (int y = 0; y < limit; y++) {
+            printf(" ");
+        }
+
+        printf("|");
+
+        return;
+    }
+
+    Artist *artist = vec_get_ref(artists, y);
+
+    if (app->selected == y) {
+        printf("|>");
+    } else {
+        printf("  ");
+    }
+
+    int printed = print_until_limit(artist->name, limit);
+    int until_limit = limit - printed;
+
+    for (int y = 0; y < until_limit; y++) {
+        printf(" ");
+    }
+
+    if (app->selected == y) {
+        printf("<");
+    } else {
+        printf(" ");
+    }
+
+    printf("|");
+}
+
+void discography_page_albums_panel(AppContext *app, Vec *albums, int y) {
+    int width;
+    oss_get_terminal_size(&width, NULL);
+
+    int limit = width / 3;
+
+    if (albums == NULL || y > albums->length - 1) {
+        for (int y = 0; y < limit + 2; y++) {
+            printf(" ");
+        }
+
+        printf("|");
+        return;
+    }
+
+    Album *album = vec_get_ref(albums, y);
+
+    if (app->selected1 == y) {
+        printf(">");
+    } else {
+        printf(" ");
+    }
+
+    int printed = print_until_limit(album->title, limit);
+    int until_limit = limit - printed;
+
+    for (int y = 0; y < until_limit; y++) {
+        printf(" ");
+    }
+
+    if (app->selected1 == y) {
+        printf("<");
+    } else {
+        printf(" ");
+    }
+
+    printf("|");
+}
+
+void discography_page_songs_panel(AppContext *app, int y) { printf("\n"); }
+
+void discography_page_panels(AppContext *app) {
+    int height;
+    int width;
+    oss_get_terminal_size(&width, &height);
+
+    Vec *artists;
+    s_artist_get_all(tgc->sqlite3, &artists);
+
+    app->max_selected = artists->length - 1;
+
+    Vec *albums = NULL;
+
+    if (app->selected_cursor > 0 && !(app->selected > artists->length - 1)) {
+        Artist *artist = vec_get_ref(artists, app->selected);
+        s_artist_get_all_albums(tgc->sqlite3, artist->id, &albums);
+        app->max_selected = albums->length - 1;
+    }
+
+    for (int i = 0; i < height - 3; i++) {
+        discography_page_artists_panel(app, artists, i);
+        discography_page_albums_panel(app, albums, i);
+        discography_page_songs_panel(app, i);
+    }
+
+    s_album_vec_free(albums);
+    s_artist_vec_free(artists);
+}
+
 int discography_page(AppContext *app) {
     printf("Discography - \n");
     printf("[Esc] Return\n");
 
-    int height;
-    oss_get_terminal_size(NULL, &height);
-
-    Vec *albums;
-    s_album_get_all(tgc->sqlite3, &albums);
-
-    int offset = app->selected;
-    app->max_selected = albums->length - 1;
-
-    for (int i = offset; i < albums->length; i++) {
-        Album *album = vec_get_ref(albums, i);
-
-        if (offset != 0 && offset == i) {
-            printf("... %d more albums \n", i);
-            height--;
-        }
-
-        if (i > (height + offset) - 6 && albums->length - i > 1) {
-            printf("... %d more albums \n", albums->length - i);
-            break;
-        }
-
-        if (i == offset) {
-            printf(" > %s\n", album->title);
-        } else
-            printf(" - %s\n", album->title);
-    }
-
-    s_album_vec_free(albums);
+    discography_page_panels(app);
 
     Key key = readkey();
+
     if (is_esc(key))
         return 1;
 
+    if (is_enter(key)) {
+        app->selected_cursor++;
+        return 0;
+    }
+
     switch (key.ch.arrow) {
+    case ARROW_RIGHT:
+        if (app->selected_cursor >= 2) {
+            break;
+        }
+
+        app->selected_cursor++;
+        break;
+    case ARROW_LEFT:
+        if (app->selected_cursor == 0)
+            break;
+
+        app->selected_cursor--;
+        break;
+
     case ARROW_UP:
-        app->selected--;
-        if (app->selected < 0)
-            app->selected = 0;
+        if (app->selected_cursor == 0) {
+            app->selected--;
+            if (app->selected < 0)
+                app->selected = 0;
+        } else if (app->selected_cursor == 1) {
+            app->selected1--;
+            if (app->selected1 < 0)
+                app->selected1 = 0;
+        } else if (app->selected_cursor == 2) {
+            app->selected2--;
+
+            if (app->selected2 < 0)
+                app->selected2 = 0;
+        }
 
         break;
     case ARROW_DOWN:
-        app->selected++;
-        if (app->selected > app->max_selected)
-            app->selected = app->max_selected;
+        if (app->selected_cursor == 0) {
+            app->selected++;
+            if (app->selected > app->max_selected) {
+                app->selected = app->max_selected;
+            }
+        } else if (app->selected_cursor == 1) {
+            app->selected1++;
+            if (app->selected1 > app->max_selected) {
+                app->selected1 = app->max_selected;
+            }
+        } else if (app->selected_cursor == 2) {
+            app->selected2++;
+            if (app->selected2 > app->max_selected) {
+                app->selected2 = app->max_selected;
+            }
+        }
 
         break;
     }

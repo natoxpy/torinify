@@ -42,4 +42,6 @@ TDB_CODE s_artist_get_name_by_language(sqlite3 *db, int artist_id,
                                        AlternativeName **altname);
 TDB_CODE s_artist_get_all_names(sqlite3 *db, int artist_id, Vec **alt_names);
 TDB_CODE s_artist_delete_name(sqlite3 *db, int artist_id, int altname_id);
+
+TDB_CODE s_artist_get_all_albums(sqlite3 *db, int artist_id, Vec **albums);
 #endif
