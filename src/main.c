@@ -989,13 +989,38 @@ int print_until_limit(char *s, size_t limit) {
     return width_accumulated;
 }
 
-void discography_page_artists_panel(AppContext *app, Vec *artists, int y) {
-    int width;
-    oss_get_terminal_size(&width, NULL);
-    int limit = width / 3;
+void discography_page_panels_headers(AppContext *app, int artist_panel_width,
+                                     int albums_panel_width,
+                                     int songs_panel_width) {
+
+    int artist_panel_width_use =
+        print_until_limit("    [== Artist ==]", artist_panel_width);
+
+    for (int y = 0; y < artist_panel_width - artist_panel_width_use + 3; y++) {
+        printf(" ");
+    }
+    printf("|");
+
+    int album_panel_width_use =
+        print_until_limit("   [== Albums ==]", albums_panel_width);
+    for (int y = 0; y < albums_panel_width - album_panel_width_use + 2; y++) {
+        printf(" ");
+    }
+    printf("|");
+
+    print_until_limit("   [== Songs ==]", songs_panel_width);
+
+    printf("\n");
+}
+
+void discography_page_artists_panel(AppContext *app, Vec *artists, int y,
+                                    int width) {
+    // int width;
+    // oss_get_terminal_size(&width, NULL);
+    // int limit = width / 3 - 3;
 
     if (y > artists->length - 1) {
-        for (int y = 0; y < limit; y++) {
+        for (int y = 0; y < width; y++) {
             printf(" ");
         }
 
@@ -1006,21 +1031,25 @@ void discography_page_artists_panel(AppContext *app, Vec *artists, int y) {
 
     Artist *artist = vec_get_ref(artists, y);
 
-    if (app->selected == y) {
+    if (app->selected_cursor == 0 && app->selected == y) {
         printf("|>");
+    } else if (app->selected_cursor != 0 && app->selected == y) {
+        printf("|[");
     } else {
         printf("  ");
     }
 
-    int printed = print_until_limit(artist->name, limit);
-    int until_limit = limit - printed;
+    int printed = print_until_limit(artist->name, width);
+    int until_limit = width - printed;
 
     for (int y = 0; y < until_limit; y++) {
         printf(" ");
     }
 
-    if (app->selected == y) {
+    if (app->selected_cursor == 0 && app->selected == y) {
         printf("<");
+    } else if (app->selected_cursor != 0 && app->selected == y) {
+        printf("]");
     } else {
         printf(" ");
     }
@@ -1028,14 +1057,15 @@ void discography_page_artists_panel(AppContext *app, Vec *artists, int y) {
     printf("|");
 }
 
-void discography_page_albums_panel(AppContext *app, Vec *albums, int y) {
-    int width;
-    oss_get_terminal_size(&width, NULL);
+void discography_page_albums_panel(AppContext *app, Vec *albums, int y,
+                                   int width) {
+    // int width;
+    // oss_get_terminal_size(&width, NULL);
 
-    int limit = width / 3;
+    // int limit = width / 3 - 3;
 
     if (albums == NULL || y > albums->length - 1) {
-        for (int y = 0; y < limit + 2; y++) {
+        for (int y = 0; y < width + 2; y++) {
             printf(" ");
         }
 
@@ -1045,21 +1075,25 @@ void discography_page_albums_panel(AppContext *app, Vec *albums, int y) {
 
     Album *album = vec_get_ref(albums, y);
 
-    if (app->selected1 == y) {
+    if (app->selected_cursor == 1 && app->selected1 == y) {
         printf(">");
+    } else if (app->selected_cursor != 1 && app->selected1 == y) {
+        printf("[");
     } else {
         printf(" ");
     }
 
-    int printed = print_until_limit(album->title, limit);
-    int until_limit = limit - printed;
+    int printed = print_until_limit(album->title, width);
+    int until_limit = width - printed;
 
     for (int y = 0; y < until_limit; y++) {
         printf(" ");
     }
 
-    if (app->selected1 == y) {
+    if (app->selected_cursor == 1 && app->selected1 == y) {
         printf("<");
+    } else if (app->selected_cursor != 1 && app->selected1 == y) {
+        printf("]");
     } else {
         printf(" ");
     }
@@ -1067,7 +1101,39 @@ void discography_page_albums_panel(AppContext *app, Vec *albums, int y) {
     printf("|");
 }
 
-void discography_page_songs_panel(AppContext *app, int y) { printf("\n"); }
+void discography_page_songs_panel(AppContext *app, Vec *musics, int y,
+                                  int width) {
+    if (musics == NULL || y > musics->length - 1) {
+        printf("\n");
+        return;
+    }
+
+    // int width;
+    // oss_get_terminal_size(&width, NULL);
+    // int limit = width / 3 - 4;
+
+    Music *music = vec_get_ref(musics, y);
+    if (app->selected2 == y) {
+        printf(">");
+    } else {
+        printf(" ");
+    }
+
+    int printed = print_until_limit(music->title, width);
+    int until_limit = width - printed;
+
+    for (int i = 0; i < until_limit; i++) {
+        printf(" ");
+    }
+
+    if (app->selected2 == y) {
+        printf("<|");
+    } else {
+        printf("  ");
+    }
+
+    printf("\n");
+}
 
 void discography_page_panels(AppContext *app) {
     int height;
@@ -1075,6 +1141,7 @@ void discography_page_panels(AppContext *app) {
     oss_get_terminal_size(&width, &height);
 
     Vec *artists;
+    char *artist_selected_name = "";
     s_artist_get_all(tgc->sqlite3, &artists);
 
     app->max_selected = artists->length - 1;
@@ -1083,18 +1150,37 @@ void discography_page_panels(AppContext *app) {
 
     if (app->selected_cursor > 0 && !(app->selected > artists->length - 1)) {
         Artist *artist = vec_get_ref(artists, app->selected);
+        artist_selected_name = artist->name;
         s_artist_get_all_albums(tgc->sqlite3, artist->id, &albums);
         app->max_selected = albums->length - 1;
     }
 
-    for (int i = 0; i < height - 3; i++) {
-        discography_page_artists_panel(app, artists, i);
-        discography_page_albums_panel(app, albums, i);
-        discography_page_songs_panel(app, i);
+    Vec *musics = NULL;
+
+    if (app->selected_cursor > 1 && !(app->selected1 > albums->length - 1)) {
+        Album *album = vec_get_ref(albums, app->selected1);
+        s_album_get_all_musics(tgc->sqlite3, album->id, &musics);
+        app->max_selected = musics->length - 1;
+    }
+
+    int artists_n_albums_panel_width = width / 3 - 3;
+    int songs_panel_width = width / 3 - 4;
+
+    discography_page_panels_headers(app, artists_n_albums_panel_width,
+                                    artists_n_albums_panel_width,
+                                    songs_panel_width);
+
+    for (int i = 0; i < height - 4; i++) {
+        discography_page_artists_panel(app, artists, i,
+                                       artists_n_albums_panel_width);
+        discography_page_albums_panel(app, albums, i,
+                                      artists_n_albums_panel_width);
+        discography_page_songs_panel(app, musics, i, songs_panel_width);
     }
 
     s_album_vec_free(albums);
     s_artist_vec_free(artists);
+    s_music_vec_free(musics);
 }
 
 int discography_page(AppContext *app) {
@@ -1126,20 +1212,27 @@ int discography_page(AppContext *app) {
             break;
 
         app->selected_cursor--;
+
         break;
 
     case ARROW_UP:
         if (app->selected_cursor == 0) {
             app->selected--;
-            if (app->selected < 0)
+            if (app->selected < 0) {
                 app->selected = 0;
+                break;
+            }
+            app->selected1 = 0;
+            app->selected2 = 0;
         } else if (app->selected_cursor == 1) {
             app->selected1--;
-            if (app->selected1 < 0)
+            if (app->selected1 < 0) {
                 app->selected1 = 0;
+                break;
+            }
+            app->selected2 = 0;
         } else if (app->selected_cursor == 2) {
             app->selected2--;
-
             if (app->selected2 < 0)
                 app->selected2 = 0;
         }
@@ -1150,12 +1243,17 @@ int discography_page(AppContext *app) {
             app->selected++;
             if (app->selected > app->max_selected) {
                 app->selected = app->max_selected;
+                break;
             }
+            app->selected1 = 0;
+            app->selected2 = 0;
         } else if (app->selected_cursor == 1) {
             app->selected1++;
             if (app->selected1 > app->max_selected) {
                 app->selected1 = app->max_selected;
+                break;
             }
+            app->selected2 = 0;
         } else if (app->selected_cursor == 2) {
             app->selected2++;
             if (app->selected2 > app->max_selected) {
