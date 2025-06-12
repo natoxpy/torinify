@@ -1015,10 +1015,6 @@ void discography_page_panels_headers(AppContext *app, int artist_panel_width,
 
 void discography_page_artists_panel(AppContext *app, Vec *artists, int y,
                                     int width) {
-    // int width;
-    // oss_get_terminal_size(&width, NULL);
-    // int limit = width / 3 - 3;
-
     if (y > artists->length - 1) {
         for (int y = 0; y < width; y++) {
             printf(" ");
@@ -1059,11 +1055,6 @@ void discography_page_artists_panel(AppContext *app, Vec *artists, int y,
 
 void discography_page_albums_panel(AppContext *app, Vec *albums, int y,
                                    int width) {
-    // int width;
-    // oss_get_terminal_size(&width, NULL);
-
-    // int limit = width / 3 - 3;
-
     if (albums == NULL || y > albums->length - 1) {
         for (int y = 0; y < width + 2; y++) {
             printf(" ");
@@ -1107,10 +1098,6 @@ void discography_page_songs_panel(AppContext *app, Vec *musics, int y,
         printf("\n");
         return;
     }
-
-    // int width;
-    // oss_get_terminal_size(&width, NULL);
-    // int limit = width / 3 - 4;
 
     Music *music = vec_get_ref(musics, y);
     if (app->selected2 == y) {
