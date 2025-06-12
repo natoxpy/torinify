@@ -635,9 +635,9 @@ void app_cleanup() {
 
 int main() {
 #ifdef _WIN32
-    // int _ = freopen("null", "w", stderr);
+    freopen("null", "w", stderr);
 #elif __unix__
-    // freopen("/dev/null", "w", stderr);
+    freopen("/dev/null", "w", stderr);
 #endif
 
     atexit(app_cleanup);
