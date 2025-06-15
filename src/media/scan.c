@@ -11,6 +11,32 @@
 #include <time.h>
 #include <utils/generic_vec.h>
 
+char *ltrim(char *s) {
+    if (s == NULL || *s == '\0')
+        return s;
+
+    while (*s == ' ')
+        s++;
+    return s;
+}
+
+char *rtrim(char *s) {
+    if (s == NULL || *s == '\0')
+        return s;
+
+    char *back = s + strlen(s) - 1;
+
+    while (*back == ' ') {
+        back--;
+    }
+
+    *(back + 1) = '\0';
+
+    return s;
+}
+
+char *trim(char *s) { return rtrim(ltrim(s)); }
+
 int supported_music_file(char *fullpath) {
 #ifdef _WIN32
     wchar_t wfullpath[1024];
@@ -224,7 +250,8 @@ void scan_file(char *fullpath, MusicContext *music_ctx) {
         char *token = strtok(artists, "/");
 
         while (token != NULL) {
-            char *token_cpy = strdup(token);
+            char *token_cpy = strdup(trim(token));
+
             vec_push(music_ctx->artists, &token_cpy);
             token = strtok(NULL, "/");
         }
