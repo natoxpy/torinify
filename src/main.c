@@ -1016,8 +1016,12 @@ void discography_page_panels_headers(AppContext *app, int artist_panel_width,
 void discography_page_artists_panel(AppContext *app, Vec *artists, int y,
                                     int width) {
     if (y > artists->length - 1) {
-        for (int y = 0; y < width; y++) {
-            printf(" ");
+        for (int i = 0; i < width + 3; i++) {
+            if (i == artists->length) {
+                printf("-");
+            } else {
+                printf(".");
+            }
         }
 
         printf("|");
@@ -1056,8 +1060,12 @@ void discography_page_artists_panel(AppContext *app, Vec *artists, int y,
 void discography_page_albums_panel(AppContext *app, Vec *albums, int y,
                                    int width) {
     if (albums == NULL || y > albums->length - 1) {
-        for (int y = 0; y < width + 2; y++) {
-            printf(" ");
+        for (int i = 0; i < width + 2; i++) {
+            if (albums != NULL && albums->length == y) {
+                printf("-");
+            } else {
+                printf(".");
+            }
         }
 
         printf("|");
@@ -1095,6 +1103,14 @@ void discography_page_albums_panel(AppContext *app, Vec *albums, int y,
 void discography_page_songs_panel(AppContext *app, Vec *musics, int y,
                                   int width) {
     if (musics == NULL || y > musics->length - 1) {
+        for (int i = 0; i < width + 2; i++) {
+            if (musics != NULL && musics->length == y) {
+                printf("-");
+            } else {
+                printf(".");
+            }
+        }
+
         printf("\n");
         return;
     }
@@ -1157,12 +1173,31 @@ void discography_page_panels(AppContext *app) {
                                     artists_n_albums_panel_width,
                                     songs_panel_width);
 
+    int artist_offset = 0;
+    int album_offset = 0;
+    int songs_offset = 0;
+
+    int mid = height / 2 - 6;
+
+    if (app->selected > mid) {
+        artist_offset = app->selected - mid;
+    }
+
+    if (app->selected1 > mid) {
+        album_offset = app->selected1 - mid;
+    }
+
+    if (app->selected2 > mid) {
+        songs_offset = app->selected2 - mid;
+    }
+
     for (int i = 0; i < height - 4; i++) {
-        discography_page_artists_panel(app, artists, i,
+        discography_page_artists_panel(app, artists, i + artist_offset,
                                        artists_n_albums_panel_width);
-        discography_page_albums_panel(app, albums, i,
+        discography_page_albums_panel(app, albums, i + album_offset,
                                       artists_n_albums_panel_width);
-        discography_page_songs_panel(app, musics, i, songs_panel_width);
+        discography_page_songs_panel(app, musics, i + songs_offset,
+                                     songs_panel_width);
     }
 
     s_album_vec_free(albums);
