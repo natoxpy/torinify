@@ -34,6 +34,7 @@
 #define PLAYBACK_PAGE 3
 #define MEDIA_PAGE 4
 #define DISCOGRAPHY_PAGE 5
+#define ORGANIZATION_PAGE 6
 
 size_t count_utf8_code_points(const char *s) {
     size_t count = 0;
@@ -619,6 +620,7 @@ int search_page(AppContext *app);
 int discography_page(AppContext *app);
 int media_page(AppContext *app);
 int playback_page(AppContext *app);
+int organization_page(AppContext *app);
 #endif
 
 Queue *get_core_queue() { return vec_get_ref(tgc->playback->queues, 0); }
@@ -692,6 +694,10 @@ int main() {
             redirect_to = discography_page(&app_ctx);
             break;
 
+        case ORGANIZATION_PAGE:
+            redirect_to = organization_page(&app_ctx);
+            break;
+
         default:
             text_copy(&app_ctx.logmsg, "Page Not Found");
             redirect_to = 1;
@@ -730,8 +736,10 @@ int home_page(AppContext *app_ctx) {
     printf("[Esc] Exit\n");
     printf("[1] Search\n");
     printf("[2] Playback\n");
-    printf("[3] Scan\n");
-    printf("[4] Discography\n");
+    printf("[3] Scan [awip] \n");
+    // printf("[4] Discography\n");
+    // printf("[5] Organization\n");
+    // printf("[6] Metadata\n");
 
     Key key = readkey();
     if (is_esc(key)) {
@@ -766,6 +774,8 @@ int home_page(AppContext *app_ctx) {
             return MEDIA_PAGE;
         case '4':
             return DISCOGRAPHY_PAGE;
+        case '5':
+            return ORGANIZATION_PAGE;
         default:
             return -2;
         }
@@ -1285,6 +1295,19 @@ int discography_page(AppContext *app) {
 
         break;
     }
+
+    return 0;
+}
+
+/// === Organization Page ===
+
+int organization_page(AppContext *app_ctx) {
+    printf("Organization\n");
+    printf("[Esc] Return\n");
+
+    Key key = readkey();
+    if (is_esc(key))
+        return 1;
 
     return 0;
 }
