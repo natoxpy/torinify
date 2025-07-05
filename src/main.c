@@ -9,9 +9,6 @@
 ///     features the torinify library offers.
 ///
 
-#include <bits/types/mbstate_t.h>
-#define _GNU_SOURCE
-
 #include "db/helpers.h"
 #include "storage/album.h"
 #include "storage/artist.h"
@@ -19,7 +16,7 @@
 #include "torinify/playback.h"
 #include "torinify/scanner.h"
 #include "utils/generic_vec.h"
-#include <locale.h>
+#include "utils/str.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -796,11 +793,28 @@ int search_page(AppContext *app) {
 
     component_render_inputbox(&app->search_query);
 
+    int tab_width = 0;
     int max = 10;
-    oss_get_terminal_size(NULL, &max);
+    oss_get_terminal_size(&tab_width, &max);
     max = max - 5;
+    tab_width = tab_width / 3 - 3;
 
-    printf("   \e[3mMusic Title\e[0m ║ \e[3mAlbum\e[0m ║ \e[3mArtist\e[0m\n");
+    char *tabs[3] = {"-|Music", "Album", "Artists"};
+
+    for (int t = 0; t < 3; t++) {
+        char *tab = tabs[t];
+
+        int used_width = print_until_limit(tab, tab_width);
+
+        for (int i = 0; i < tab_width - used_width; i++) {
+            printf("-");
+        }
+
+        if (t != 2)
+            printf("|");
+        else
+            printf("\n");
+    }
 
     if (app->search_results) {
         Queue *q = get_core_queue();
@@ -854,8 +868,30 @@ int search_page(AppContext *app) {
                 cursor = "> ";
             }
 
-            printf(" %s%s ║ %s ║ %s\n", cursor, result->title, album_name,
-                   artist_name);
+            printf("%s", cursor);
+
+            int tab_title_width = print_until_limit(result->title, tab_width);
+
+            for (int _ = 0; _ < tab_width - (tab_title_width + 1); _++) {
+                printf(" ");
+            }
+
+            int tab_album_width = print_until_limit(album_name, tab_width);
+
+            for (int _ = 0; _ < tab_width - tab_album_width + 1; _++) {
+                printf(" ");
+            }
+
+            int tab_artist_width = print_until_limit(artist_name, tab_width);
+
+            for (int _ = 0; _ < tab_width - tab_artist_width + 1; _++) {
+                printf(" ");
+            }
+
+            printf("\n");
+
+            // printf(" %s%s ║ %s ║ %s\n", cursor, result->title, album_name,
+            //        artist_name);
 
             free(album_name);
             free(artist_name);
@@ -937,67 +973,6 @@ int search_page(AppContext *app) {
 }
 
 /// === DISCOGRAPHY PAGE ===
-
-// int discography_artists(AppContext *app) {}
-// int discography_songs(AppContext *app) {}
-
-int utf8_display_width(const char *s) {
-    setlocale(LC_CTYPE, "");
-    mbstate_t st = {0};
-    wchar_t wc;
-    size_t len;
-    int total_width = 0;
-
-    while ((len = mbrtowc(&wc, s, MB_CUR_MAX, &st)) > 0) {
-        int w = wcwidth(wc);
-        if (w < 0)
-            w = 0;
-        total_width += w;
-        s += len;
-    }
-    return total_width;
-}
-
-int utf8_str_get(const char *s, char *s_out, size_t index) {
-    mbstate_t st = {0};
-    wchar_t wc;
-    size_t len;
-    size_t s_index = 0;
-
-    while ((len = mbrtowc(&wc, s, MB_CUR_MAX, &st)) > 0) {
-        if (s_index == index) {
-            int l = wcrtomb(s_out, wc, &st);
-            if (l < 0)
-                return -1;
-            s_out[l] = '\0';
-            return l;
-        }
-
-        s_index += 1;
-        s += len;
-    }
-
-    return -1;
-}
-
-/// @returns number of characters printed
-int print_until_limit(char *s, size_t limit) {
-    int width_accumulated = 0;
-    int string_width = utf8_display_width(s);
-
-    for (int y = 0; y < string_width; y++) {
-        char mb_char[15];
-        utf8_str_get(s, mb_char, y);
-        int temporary_width = utf8_display_width(mb_char);
-        if (width_accumulated + temporary_width > limit)
-            break;
-
-        width_accumulated += temporary_width;
-        printf("%s", mb_char);
-    }
-
-    return width_accumulated;
-}
 
 void discography_page_panels_headers(AppContext *app, int artist_panel_width,
                                      int albums_panel_width,
