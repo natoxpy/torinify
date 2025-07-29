@@ -6,7 +6,6 @@
 #include "storage/album.h"
 #include "storage/artist.h"
 #include "storage/music.h"
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <taglib/tag_c.h>
@@ -94,8 +93,6 @@ void sc_scan_context_free_and_commit(ScannerContext *ctx) {
             wchar_t wtitle[1012];
             mbstowcs(wtitle, file_state->filepath, 1012);
         }
-
-        // wprintf("%ls\n", wtitle);
 
         Music music = {.id = -1,
                        .title = file_state->metadata.name,

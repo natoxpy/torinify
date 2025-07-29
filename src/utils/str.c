@@ -59,3 +59,12 @@ int print_until_limit(char *s, size_t limit) {
     return width_accumulated;
 }
 
+/// after printing all the character it continue to print all the whitespaces
+/// left
+void print_with_blanks(char *s, char blank, size_t limit) {
+    int width = print_until_limit(s, limit);
+
+    for (int i = 0; i < limit - width; i++) {
+        printf("%c", blank);
+    }
+}

@@ -10,4 +10,5 @@
 int utf8_display_width(const char *s);
 int utf8_str_get(const char *s, char *s_out, size_t index);
 int print_until_limit(char *s, size_t limit);
+void print_with_blanks(char *s, char blank, size_t limit);
 #endif
