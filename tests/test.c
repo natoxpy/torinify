@@ -1,5 +1,6 @@
 ﻿#include "./db.c"
 #include "./sh.c"
+#include "./utils/generic_vec.h"
 #include <stdio.h>
 #include <taglib/tag_c.h>
 #include <unistd.h>
@@ -7,8 +8,26 @@
 int main() {
     printf("====== [ TESTS ] ======\n");
 
-    db_tests();
-    sh_tests();
+    // Vec *data = vec_init(sizeof(int));
+
+    // int v1 = 1;
+    // vec_push(data, (void *)(uintptr_t)&v1);
+
+    // int v2 = 2;
+    // vec_push(data, (void *)(uintptr_t)&v2);
+
+    // int v3 = 3;
+    // vec_push(data, (void *)(uintptr_t)&v3);
+
+    // for (int i = 0; i < data->length; i++) {
+    //     int v = *(int *)vec_get(data, i);
+    //     printf("index %d value %d\n", i, v);
+    // }
+
+    // vec_free(data);
+
+    // db_tests();
+    // sh_tests();
 
     return 0;
     // TagLib_File *file = taglib_file_new(
