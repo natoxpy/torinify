@@ -10,32 +10,7 @@
 #include <taglib/tag_c.h>
 #include <time.h>
 #include <utils/generic_vec.h>
-
-char *ltrim(char *s) {
-    if (s == NULL || *s == '\0')
-        return s;
-
-    while (*s == ' ')
-        s++;
-    return s;
-}
-
-char *rtrim(char *s) {
-    if (s == NULL || *s == '\0')
-        return s;
-
-    char *back = s + strlen(s) - 1;
-
-    while (*back == ' ') {
-        back--;
-    }
-
-    *(back + 1) = '\0';
-
-    return s;
-}
-
-char *trim(char *s) { return rtrim(ltrim(s)); }
+#include <utils/str.h>
 
 int supported_music_file(char *fullpath) {
 #ifdef _WIN32

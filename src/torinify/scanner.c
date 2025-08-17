@@ -31,6 +31,20 @@ ScannerContext *sc_scan_start_single_root(sqlite3 *db, int root_id) {
     return sc_scan_start(db, roots);
 }
 
+ScannerContext *sc_scan_start_from_vec(sqlite3 *db, Vec *sources) {
+    Vec *roots = vec_init(sizeof(char *));
+
+    for (int i = 0; i < sources->length; i++) {
+        MediaSourceRow *row = vec_get_ref(sources, i);
+        char *s = strdup(row->path);
+        vec_push(roots, &s);
+    }
+
+    // dbt_source_vec_rows_free(sources);
+
+    return sc_scan_start(db, roots);
+}
+
 ScannerContext *sc_scan_start_all_roots(sqlite3 *db) {
     Vec *roots = vec_init(sizeof(char *));
 

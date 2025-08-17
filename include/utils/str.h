@@ -7,6 +7,9 @@
 #include <stdlib.h>
 #include <wchar.h>
 
+char *ltrim(char *s);
+char *rtrim(char *s);
+char *trim(char *s);
 int utf8_display_width(const char *s);
 int utf8_str_get(const char *s, char *s_out, size_t index);
 int print_until_limit(char *s, size_t limit);

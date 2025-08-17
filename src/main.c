@@ -11,6 +11,7 @@
 
 #include "db/helpers.h"
 #include "db/tables.h"
+#include "media/scan.h"
 #include "storage/album.h"
 #include "storage/artist.h"
 #include "storage/music.h"
@@ -1529,21 +1530,356 @@ int_navigation media_scan_select_sources(AppContext *app_ctx,
     return page;
 }
 
-int_navigation media_scan_perform_scan_page(AppContext *app_ctx, Vec *sources) {
+int_navigation media_scan_perform_scan_page(AppContext *app_ctx, Vec *sources,
+                                            ScannerContext **scanner_ctx_out) {
     clean_screen();
-    int page = BACKPAGE;
-    if (sources == NULL)
+    int page = 0;
+    if (sources == NULL || sources != NULL && sources->length == 0) {
+        text_copy(&app_ctx->logmsg, "No sources selected");
         return BACKPAGE;
-
-    for (int i = 0; i < sources->length; i++) {
-        MediaSourceRow *row = vec_get_ref(sources, i);
-        printf("%s\n", row->path);
     }
 
-    Key key = readkey();
+    ScannerContext *scanner_ctx = sc_scan_start_from_vec(tgc->sqlite3, sources);
 
-    dbt_source_vec_rows_free(sources);
+    int ret, width, final_rerender = 1;
+
+    while ((ret = sc_lock_scan(scanner_ctx)) == 0 || final_rerender) {
+        if (ret != 0)
+            final_rerender = 0;
+
+        clean_screen();
+        oss_get_terminal_size(&width, NULL);
+
+        float dk = (float)scanner_ctx->scan_ctx->processed /
+                   scanner_ctx->scan_ctx->data->length;
+
+        char buff[255];
+        sprintf(buff, "(%d / %d)", scanner_ctx->scan_ctx->processed,
+                scanner_ctx->scan_ctx->data->length);
+        printf("%s[", buff);
+
+        int uwidth = width - (2 + strlen(buff));
+
+        for (int i = 0; i < uwidth; i++) {
+            float bk = (float)i / uwidth;
+
+            if (bk >= dk)
+                printf(" ");
+            else
+                printf("|");
+        }
+
+        printf("]\n");
+
+        sc_unlock_scan(scanner_ctx);
+
+        oss_usleep(1000);
+    }
+
+    *scanner_ctx_out = scanner_ctx;
+
     return page;
+}
+
+void media_scan_component_file_state_name(char *cursor, char *name) {
+    int width;
+    oss_get_terminal_size(&width, NULL);
+
+    char buff_title[255];
+    snprintf(buff_title, 255, "%s%s", cursor, name);
+
+    print_with_blanks(buff_title, ' ', width / 3);
+    printf("|");
+}
+
+void media_scan_component_file_state_album(char *cursor, char *album) {
+    int width;
+    oss_get_terminal_size(&width, NULL);
+
+    char buff_album[255];
+    snprintf(buff_album, 255, "%s%s", cursor, album);
+
+    print_with_blanks(buff_album, ' ', width / 3 - 1);
+    printf("|");
+}
+
+void media_scan_component_file_state_artists(int i, FileState *file_state,
+                                             int x_cursor, int y_cursor,
+                                             int *x_cursor_max,
+                                             char *static_cursor,
+                                             char *static_no_cursor) {
+    int width;
+    oss_get_terminal_size(&width, NULL);
+
+    char *cursor = static_no_cursor;
+    char buff_artists[512] = "\0";
+
+    int buff_artists_len = 0;
+
+    int artists_length = file_state->metadata.artists->length;
+
+    if (y_cursor == i)
+        *x_cursor_max = artists_length + 1;
+
+    for (int y = 0; y < artists_length; y++) {
+        char *artist = vec_get_ref(file_state->metadata.artists, y);
+
+        if (y_cursor == i && x_cursor == 2 + y)
+            cursor = static_cursor;
+        else
+            cursor = static_no_cursor;
+
+        strncat(buff_artists, "", 512 - 1);
+        strncat(buff_artists, cursor, 512 - 1);
+        strncat(buff_artists, artist, 512 - 1);
+
+        if (artists_length - 1 != y)
+            strncat(buff_artists, " / ", 512 - 1);
+    }
+
+    print_with_blanks(buff_artists, ' ', width / 3 - 1);
+}
+
+void media_scan_component_file_state(FileState *file_state, int i, int x_cursor,
+                                     int y_cursor, int *x_cursor_max) {
+
+    int width;
+    oss_get_terminal_size(&width, NULL);
+
+    char *static_cursor = "|> ";
+    char *static_no_cursor = "";
+
+    char *cursor = static_no_cursor;
+    if (y_cursor == i && x_cursor == 0)
+        cursor = static_cursor;
+
+    media_scan_component_file_state_name(cursor, file_state->metadata.name);
+
+    cursor = static_no_cursor;
+    if (y_cursor == i && x_cursor == 1)
+        cursor = static_cursor;
+
+    media_scan_component_file_state_album(cursor, file_state->metadata.album);
+
+    media_scan_component_file_state_artists(i, file_state, x_cursor, y_cursor,
+                                            x_cursor_max, static_cursor,
+                                            static_no_cursor);
+
+    printf("\n");
+}
+
+void media_scan_input_multitask_component(Text *text, int state) {
+    if (state == 0)
+        return;
+
+    switch (state) {
+    case 0:
+        return;
+    case 1:
+        printf("edit name: ");
+        break;
+    case 2:
+        printf("edit album: ");
+        break;
+    case 3:
+        printf("edit artist: ");
+        break;
+    case 4:
+        printf("new artist: ");
+        break;
+    }
+
+    component_render_inputbox(text);
+}
+
+int_navigation
+media_scan_media_precommit_modifications_page(AppContext *app_ctx,
+                                              ScannerContext *scanner_ctx) {
+    int x_cursor = 0;
+    int y_cursor = 0;
+    int y_cursor_max = scanner_ctx->scan_ctx->data->length - 1;
+
+    Text input = {.len = 0, .cap = 255, .str = malloc(sizeof(char *) * 255)};
+    text_empty(&input);
+
+    // 0 = not active, 1 edit name, 2 edit album, 3 edit artist, 4 add artist
+    int input_usage_state = 0;
+    int input_usage_target = 0;
+    int input_usage_x_target = 0;
+
+    while (1) {
+        if (y_cursor <= 0)
+            y_cursor = 0;
+
+        clean_screen();
+        int height, width;
+        oss_get_terminal_size(&width, &height);
+
+        printf("Scan Found Page - %d results",
+               scanner_ctx->scan_ctx->data->length);
+
+        if (x_cursor == 0)
+            printf(" | [Enter] Edit title");
+
+        if (x_cursor == 1)
+            printf(" | [Enter] Edit album");
+
+        if (x_cursor >= 2)
+            printf(" | [Enter] Edit artist");
+
+        printf(" | [a] Add artist");
+
+        if (x_cursor >= 2)
+            printf(" | [d] Delete artist\n");
+        else
+            printf("\n");
+
+        media_scan_input_multitask_component(&input, input_usage_state);
+
+        print_with_blanks("[== Title ==]", '-', width / 3);
+        print_with_blanks("[== Album ==]", '-', width / 3);
+        print_with_blanks("[== Artists ==]", '-', width / 3);
+
+        printf("\n");
+
+        int cursor_offset = y_cursor;
+        int x_cursor_max = 1;
+
+        for (int i = cursor_offset; i < scanner_ctx->scan_ctx->data->length;
+             i++) {
+            if (i - cursor_offset > height - (4 + 1))
+                break;
+
+            FileState *file_state = vec_get_ref(scanner_ctx->scan_ctx->data, i);
+            media_scan_component_file_state(file_state, i, x_cursor, y_cursor,
+                                            &x_cursor_max);
+        }
+
+        Key key = readkey();
+        if (is_esc(key) && input_usage_state != 0) {
+            input_usage_state = 0;
+            text_empty(&input);
+        } else if (is_esc(key)) {
+            // sc_scan_context_free(scanner_ctx);
+            free(input.str);
+            return BACKPAGE;
+        }
+
+        if (is_char(key, 'a')) {
+            input_usage_state = 4;
+            input_usage_target = y_cursor;
+            continue;
+        }
+
+        if (is_char(key, 'd') && x_cursor >= 2) {
+            FileState *file_state =
+                vec_get_ref(scanner_ctx->scan_ctx->data, y_cursor);
+
+            char *artist =
+                vec_get_ref(file_state->metadata.artists, x_cursor - 2);
+            free(artist);
+
+            vec_remove(file_state->metadata.artists, x_cursor - 2);
+        }
+
+        if (is_enter(key) && input_usage_state == 0) {
+            input_usage_target = y_cursor;
+
+            FileState *file_state =
+                vec_get_ref(scanner_ctx->scan_ctx->data, y_cursor);
+
+            if (x_cursor == 0) {
+                input_usage_state = 1;
+                text_copy(&input, file_state->metadata.name);
+            }
+
+            if (x_cursor == 1) {
+                input_usage_state = 2;
+                text_copy(&input, file_state->metadata.album);
+            }
+
+            if (x_cursor >= 2) {
+                input_usage_state = 3;
+                input_usage_x_target = x_cursor - 2;
+                char *artist = vec_get_ref(file_state->metadata.artists,
+                                           input_usage_x_target);
+
+                text_copy(&input, artist);
+            }
+
+        } else if (is_enter(key)) {
+
+            char *input_str = trim(strdup(input.str));
+
+            FileState *file_state =
+                vec_get_ref(scanner_ctx->scan_ctx->data, input_usage_target);
+
+            if (input_usage_state == 1) {
+                free(file_state->metadata.name);
+                file_state->metadata.name = strdup(input_str);
+            } else if (input_usage_state == 2) {
+                free(file_state->metadata.album);
+                file_state->metadata.album = strdup(input_str);
+            } else if (input_usage_state == 3) {
+                char *artist = vec_get_ref(file_state->metadata.artists,
+                                           input_usage_x_target);
+
+                strcpy(artist, input_str);
+            } else if (input_usage_state == 4) {
+                char *artist = strdup(input_str);
+                vec_push(file_state->metadata.artists, &artist);
+            }
+
+            text_empty(&input);
+            free(input_str);
+            input_usage_state = 0;
+        }
+
+        if (input_usage_state != 0)
+            collect_text(&input, key);
+
+        switch (key.ch.arrow) {
+        case ARROW_DOWN:
+            y_cursor++;
+            if (y_cursor > y_cursor_max)
+                y_cursor = y_cursor_max;
+            break;
+        case ARROW_UP:
+            y_cursor--;
+            if (y_cursor < 0)
+                y_cursor = 0;
+            break;
+        case ARROW_LEFT:
+            x_cursor--;
+            if (x_cursor < 0)
+                x_cursor = 0;
+            break;
+        case ARROW_RIGHT:
+            x_cursor++;
+            if (x_cursor > x_cursor_max)
+                x_cursor = x_cursor_max;
+            break;
+        }
+
+        if (x_cursor >= 2) {
+            FileState *file_state =
+                vec_get_ref(scanner_ctx->scan_ctx->data, y_cursor);
+
+            if (x_cursor > file_state->metadata.artists->length + 1) {
+                x_cursor = file_state->metadata.artists->length + 1;
+            }
+        }
+    }
+
+    free(input.str);
+
+    // sc_scan_context_free_and_commit(scanner_ctx);
+
+    printf("Press any key to continue\n");
+
+    readkey();
+
+    return BACKPAGE;
 }
 
 int_navigation media_scan_media_subpage(AppContext *app_ctx) {
@@ -1554,11 +1890,21 @@ int_navigation media_scan_media_subpage(AppContext *app_ctx) {
     if (nav == BACKPAGE)
         return BACKPAGE;
 
-    nav = media_scan_perform_scan_page(app_ctx, sources);
+    ScannerContext *scanner_ctx = NULL;
+
+    nav = media_scan_perform_scan_page(app_ctx, sources, &scanner_ctx);
+    dbt_source_vec_rows_free(sources);
+
     if (nav == BACKPAGE)
         return BACKPAGE;
 
-    return 0;
+    nav = media_scan_media_precommit_modifications_page(app_ctx, scanner_ctx);
+
+    if (nav == BACKPAGE) {
+        sc_scan_context_free_and_cancel(scanner_ctx);
+    }
+
+    return BACKPAGE;
 }
 
 int media_scan_media_subpage_old(AppContext *app_ctx) {
