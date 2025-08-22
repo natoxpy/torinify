@@ -346,32 +346,35 @@ int lock_scan(ScanContext *scan_ctx) {
 
 void unlock_scan(ScanContext *scan_ctx) { mtx_unlock(&scan_ctx->mutex); };
 
+void file_state_free(FileState *fs) {
+    if (fs->filepath != 0)
+        free(fs->filepath);
+
+    if (fs->filename != 0)
+        free(fs->filename);
+
+    if (fs->metadata.name != 0)
+        free(fs->metadata.name);
+
+    if (fs->metadata.artists) {
+        for (int i = 0; i < fs->metadata.artists->length; i++) {
+            char *s = vec_get_ref(fs->metadata.artists, i);
+            free(s);
+        }
+        vec_free(fs->metadata.artists);
+    }
+
+    if (fs->metadata.album != 0)
+        free(fs->metadata.album);
+
+    free(fs);
+}
+
 void finalize_scan(ScanContext *scan_ctx) {
 
     for (int i = 0; i < scan_ctx->data->length; i++) {
         FileState *fs = vec_get_ref(scan_ctx->data, i);
-
-        if (fs->filepath != 0)
-            free(fs->filepath);
-
-        if (fs->filename != 0)
-            free(fs->filename);
-
-        if (fs->metadata.name != 0)
-            free(fs->metadata.name);
-
-        if (fs->metadata.artists) {
-            for (int i = 0; i < fs->metadata.artists->length; i++) {
-                char *s = vec_get_ref(fs->metadata.artists, i);
-                free(s);
-            }
-            vec_free(fs->metadata.artists);
-        }
-
-        if (fs->metadata.album != 0)
-            free(fs->metadata.album);
-
-        free(fs);
+        file_state_free(fs);
     }
 
     for (int i = 0; i < scan_ctx->threads_ctx->length; i++) {

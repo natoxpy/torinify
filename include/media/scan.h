@@ -45,6 +45,8 @@ typedef struct {
 
 int msleep(long msec);
 
+void file_state_free(FileState *fs);
+
 ScanContext *start_scan(sqlite3 *db, Vec *sources, int threads);
 
 /**

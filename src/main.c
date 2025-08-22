@@ -1698,9 +1698,11 @@ void media_scan_input_multitask_component(Text *text, int state) {
 #define INPUT_USAGE_RENAME_ARTIST 3
 #define INPUT_USAGE_ADD_ARTIST 4
 
-int_navigation
-media_scan_media_precommit_modifications_page(AppContext *app_ctx,
-                                              ScannerContext *scanner_ctx) {
+#define MEDIA_SCAN_OK -1
+#define MEDIA_SCAN_RETURN 1
+
+int media_scan_media_precommit_modifications_page(AppContext *app_ctx,
+                                                  ScannerContext *scanner_ctx) {
     int x_cursor = 0;
     int y_cursor = 0;
     int y_cursor_max = scanner_ctx->scan_ctx->data->length - 1;
@@ -1723,6 +1725,12 @@ media_scan_media_precommit_modifications_page(AppContext *app_ctx,
 
         printf("Scan Found Page - %d results",
                scanner_ctx->scan_ctx->data->length);
+
+        if (input_usage_state == INPUT_USAGE_NOT_ACTIVE)
+            printf(" | [Enter/ESC] Save/Cancel");
+
+        if (x_cursor < 2 && input_usage_state == INPUT_USAGE_NOT_ACTIVE)
+            printf(" | [d] Delete Row");
 
         if (x_cursor == 0 && input_usage_state != INPUT_USAGE_NOT_ACTIVE)
             printf(" | [Enter] Rename Title | [ESC] Cancel Rename");
@@ -1776,9 +1784,9 @@ media_scan_media_precommit_modifications_page(AppContext *app_ctx,
             input_usage_state = 0;
             text_empty(&input);
         } else if (is_esc(key)) {
-            // sc_scan_context_free(scanner_ctx);
+            sc_scan_context_free_and_cancel(scanner_ctx);
             free(input.str);
-            return BACKPAGE;
+            return MEDIA_SCAN_RETURN;
         }
 
         if (is_char(key, 'a')) {
@@ -1796,6 +1804,15 @@ media_scan_media_precommit_modifications_page(AppContext *app_ctx,
             free(artist);
 
             vec_remove(file_state->metadata.artists, x_cursor - 2);
+        }
+
+        if (is_char(key, 'd') && x_cursor < 2) {
+            FileState *file_state =
+                vec_get_ref(scanner_ctx->scan_ctx->data, y_cursor);
+
+            file_state_free(file_state);
+
+            vec_remove(scanner_ctx->scan_ctx->data, y_cursor);
         }
 
         if (is_char(key, 'r') && input_usage_state == INPUT_USAGE_NOT_ACTIVE) {
@@ -1851,6 +1868,11 @@ media_scan_media_precommit_modifications_page(AppContext *app_ctx,
             input_usage_state = INPUT_USAGE_NOT_ACTIVE;
         }
 
+        if (is_enter(key) && input_usage_state == INPUT_USAGE_NOT_ACTIVE) {
+            free(input.str);
+            return MEDIA_SCAN_OK;
+        }
+
         if (input_usage_state == INPUT_USAGE_NOT_ACTIVE) {
             switch (key.ch.arrow) {
             case ARROW_DOWN:
@@ -1887,14 +1909,9 @@ media_scan_media_precommit_modifications_page(AppContext *app_ctx,
     }
 
     free(input.str);
-
-    // sc_scan_context_free_and_commit(scanner_ctx);
-
-    printf("Press any key to continue\n");
-
     readkey();
 
-    return BACKPAGE;
+    return MEDIA_SCAN_RETURN;
 }
 
 int_navigation media_scan_media_subpage(AppContext *app_ctx) {
@@ -1915,9 +1932,8 @@ int_navigation media_scan_media_subpage(AppContext *app_ctx) {
 
     nav = media_scan_media_precommit_modifications_page(app_ctx, scanner_ctx);
 
-    if (nav == BACKPAGE) {
-        sc_scan_context_free_and_cancel(scanner_ctx);
-    }
+    if (nav == MEDIA_SCAN_OK)
+        sc_scan_context_free_and_commit(scanner_ctx);
 
     return BACKPAGE;
 }
