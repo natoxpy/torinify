@@ -1692,6 +1692,12 @@ void media_scan_input_multitask_component(Text *text, int state) {
     component_render_inputbox(text);
 }
 
+#define INPUT_USAGE_NOT_ACTIVE 0
+#define INPUT_USAGE_RENAME_NAME 1
+#define INPUT_USAGE_RENAME_ALBUM 2
+#define INPUT_USAGE_RENAME_ARTIST 3
+#define INPUT_USAGE_ADD_ARTIST 4
+
 int_navigation
 media_scan_media_precommit_modifications_page(AppContext *app_ctx,
                                               ScannerContext *scanner_ctx) {
@@ -1703,7 +1709,7 @@ media_scan_media_precommit_modifications_page(AppContext *app_ctx,
     text_empty(&input);
 
     // 0 = not active, 1 edit name, 2 edit album, 3 edit artist, 4 add artist
-    int input_usage_state = 0;
+    int input_usage_state = INPUT_USAGE_NOT_ACTIVE;
     int input_usage_target = 0;
     int input_usage_x_target = 0;
 
@@ -1718,19 +1724,26 @@ media_scan_media_precommit_modifications_page(AppContext *app_ctx,
         printf("Scan Found Page - %d results",
                scanner_ctx->scan_ctx->data->length);
 
-        if (x_cursor == 0)
-            printf(" | [Enter] Edit title");
+        if (x_cursor == 0 && input_usage_state != INPUT_USAGE_NOT_ACTIVE)
+            printf(" | [Enter] Rename Title | [ESC] Cancel Rename");
+        else if (x_cursor == 0)
+            printf(" | [r] Rename Title");
 
-        if (x_cursor == 1)
-            printf(" | [Enter] Edit album");
+        if (x_cursor == 1 && input_usage_state != INPUT_USAGE_NOT_ACTIVE)
+            printf(" | [Enter] Rename Album | [ESC] Cancel Rename");
+        else if (x_cursor == 1)
+            printf(" | [r] Rename Album");
 
-        if (x_cursor >= 2)
-            printf(" | [Enter] Edit artist");
+        if (x_cursor >= 2 && input_usage_state == INPUT_USAGE_NOT_ACTIVE)
+            printf(" | [r] Rename Artist");
+        else if (x_cursor >= 2)
+            printf(" | [Enter] Rename Artist | [ESC] Cancel Rename");
 
-        printf(" | [a] Add artist");
+        if (input_usage_state == INPUT_USAGE_NOT_ACTIVE)
+            printf(" | [a] Add Artist");
 
-        if (x_cursor >= 2)
-            printf(" | [d] Delete artist\n");
+        if (x_cursor >= 2 && input_usage_state == INPUT_USAGE_NOT_ACTIVE)
+            printf(" | [d] Delete Artist\n");
         else
             printf("\n");
 
@@ -1756,7 +1769,10 @@ media_scan_media_precommit_modifications_page(AppContext *app_ctx,
         }
 
         Key key = readkey();
-        if (is_esc(key) && input_usage_state != 0) {
+        if (input_usage_state != 0)
+            collect_text(&input, key);
+
+        if (is_esc(key) && input_usage_state != INPUT_USAGE_NOT_ACTIVE) {
             input_usage_state = 0;
             text_empty(&input);
         } else if (is_esc(key)) {
@@ -1782,24 +1798,24 @@ media_scan_media_precommit_modifications_page(AppContext *app_ctx,
             vec_remove(file_state->metadata.artists, x_cursor - 2);
         }
 
-        if (is_enter(key) && input_usage_state == 0) {
+        if (is_char(key, 'r') && input_usage_state == INPUT_USAGE_NOT_ACTIVE) {
             input_usage_target = y_cursor;
 
             FileState *file_state =
                 vec_get_ref(scanner_ctx->scan_ctx->data, y_cursor);
 
             if (x_cursor == 0) {
-                input_usage_state = 1;
+                input_usage_state = INPUT_USAGE_RENAME_NAME;
                 text_copy(&input, file_state->metadata.name);
             }
 
             if (x_cursor == 1) {
-                input_usage_state = 2;
+                input_usage_state = INPUT_USAGE_RENAME_ALBUM;
                 text_copy(&input, file_state->metadata.album);
             }
 
             if (x_cursor >= 2) {
-                input_usage_state = 3;
+                input_usage_state = INPUT_USAGE_RENAME_ARTIST;
                 input_usage_x_target = x_cursor - 2;
                 char *artist = vec_get_ref(file_state->metadata.artists,
                                            input_usage_x_target);
@@ -1814,51 +1830,50 @@ media_scan_media_precommit_modifications_page(AppContext *app_ctx,
             FileState *file_state =
                 vec_get_ref(scanner_ctx->scan_ctx->data, input_usage_target);
 
-            if (input_usage_state == 1) {
+            if (input_usage_state == INPUT_USAGE_RENAME_NAME) {
                 free(file_state->metadata.name);
                 file_state->metadata.name = strdup(input_str);
-            } else if (input_usage_state == 2) {
+            } else if (input_usage_state == INPUT_USAGE_RENAME_ALBUM) {
                 free(file_state->metadata.album);
                 file_state->metadata.album = strdup(input_str);
-            } else if (input_usage_state == 3) {
+            } else if (input_usage_state == INPUT_USAGE_RENAME_ARTIST) {
                 char *artist = vec_get_ref(file_state->metadata.artists,
                                            input_usage_x_target);
 
                 strcpy(artist, input_str);
-            } else if (input_usage_state == 4) {
+            } else if (input_usage_state == INPUT_USAGE_ADD_ARTIST) {
                 char *artist = strdup(input_str);
                 vec_push(file_state->metadata.artists, &artist);
             }
 
             text_empty(&input);
             free(input_str);
-            input_usage_state = 0;
+            input_usage_state = INPUT_USAGE_NOT_ACTIVE;
         }
 
-        if (input_usage_state != 0)
-            collect_text(&input, key);
-
-        switch (key.ch.arrow) {
-        case ARROW_DOWN:
-            y_cursor++;
-            if (y_cursor > y_cursor_max)
-                y_cursor = y_cursor_max;
-            break;
-        case ARROW_UP:
-            y_cursor--;
-            if (y_cursor < 0)
-                y_cursor = 0;
-            break;
-        case ARROW_LEFT:
-            x_cursor--;
-            if (x_cursor < 0)
-                x_cursor = 0;
-            break;
-        case ARROW_RIGHT:
-            x_cursor++;
-            if (x_cursor > x_cursor_max)
-                x_cursor = x_cursor_max;
-            break;
+        if (input_usage_state == INPUT_USAGE_NOT_ACTIVE) {
+            switch (key.ch.arrow) {
+            case ARROW_DOWN:
+                y_cursor++;
+                if (y_cursor > y_cursor_max)
+                    y_cursor = y_cursor_max;
+                break;
+            case ARROW_UP:
+                y_cursor--;
+                if (y_cursor < 0)
+                    y_cursor = 0;
+                break;
+            case ARROW_LEFT:
+                x_cursor--;
+                if (x_cursor < 0)
+                    x_cursor = 0;
+                break;
+            case ARROW_RIGHT:
+                x_cursor++;
+                if (x_cursor > x_cursor_max)
+                    x_cursor = x_cursor_max;
+                break;
+            }
         }
 
         if (x_cursor >= 2) {
