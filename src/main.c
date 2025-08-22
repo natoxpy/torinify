@@ -742,7 +742,7 @@ int home_page(AppContext *app_ctx) {
     printf("[Esc] Exit\n");
     printf("[1] Search\n");
     printf("[2] Playback\n");
-    printf("[3] Scan [awip] \n");
+    printf("[3] Scan \n");
     // printf("[4] Discography\n");
     // printf("[5] Organization\n");
     // printf("[6] Metadata\n");
